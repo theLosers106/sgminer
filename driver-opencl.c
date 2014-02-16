@@ -206,6 +206,8 @@ static enum cl_kernels select_kernel(char *arg)
 		return KL_ZUIKKIS;
 	if (!strcmp(arg, PSW_KERNNAME))
 		return KL_PSW;
+	if (!strcmp(arg, NSCRYPT_KERNNAME))
+		return KL_NSCRYPT;
 
 	return KL_NONE;
 }
@@ -1019,6 +1021,13 @@ static cl_int queue_scrypt_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_u
 	unsigned int num = 0;
 	cl_uint le_target;
 	cl_int status = 0;
+	uint32_t timestamp;
+	cl_uint nfactor = 10;    // scrypt default
+
+	if (opt_nscrypt) {
+		timestamp = bswap_32(*((uint32_t *)(blk->work->data + 17*4)));
+ 		nfactor = vert_GetNfactor(timestamp) + 1;
+	}
 
 	le_target = *(cl_uint *)(blk->work->device_target + 28);
 	clState->cldata = blk->work->data;
@@ -1030,6 +1039,9 @@ static cl_int queue_scrypt_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_u
 	CL_SET_VARG(4, &midstate[0]);
 	CL_SET_VARG(4, &midstate[16]);
 	CL_SET_ARG(le_target);
+	if (opt_nscrypt) {
+		CL_SET_ARG(nfactor);
+	}
 
 	return status;
 }
@@ -1038,19 +1050,30 @@ static void set_threads_hashes(unsigned int vectors, unsigned int compute_shader
 			       unsigned int minthreads, __maybe_unused int *intensity, __maybe_unused int *xintensity, __maybe_unused int *rawintensity)
 {
 	unsigned int threads = 0;
-	while (threads < minthreads) {
-		if (*rawintensity > 0) {
-			threads = *rawintensity;
-		} else if (*xintensity > 0) {
-			threads = compute_shaders * *xintensity;
-		} else {
-			threads = 1 << *intensity;
-		}
-		if (threads < minthreads) {
-			if (likely(*intensity < MAX_INTENSITY))
-				(*intensity)++;
-			else
-				threads = minthreads;
+	if (opt_nscrypt) {
+		// new intensity calculation based on shader count
+		threads = (compute_shaders * minthreads << (MAX_INTENSITY-19)) >> (MAX_INTENSITY - *intensity);
+ 
+		if (threads < minthreads)
+			threads = minthreads;
+		else if (threads % minthreads)
+			threads += minthreads - (threads % minthreads);
+	}
+	else {
+		while (threads < minthreads) {
+			if (*rawintensity > 0) {
+				threads = *rawintensity;
+			} else if (*xintensity > 0) {
+				threads = compute_shaders * *xintensity;
+			} else {
+				threads = 1 << *intensity;
+			}
+			if (threads < minthreads) {
+				if (likely(*intensity < MAX_INTENSITY))
+					(*intensity)++;
+				else
+					threads = minthreads;
+			}
 		}
 	}
 
@@ -1322,6 +1345,9 @@ static bool opencl_thread_prepare(struct thr_info *thr)
 			case KL_PSW:
 				cgpu->kname = PSW_KERNNAME;
 				break;
+			case KL_NSCRYPT:
+				cgpu->kname = NSCRYPT_KERNNAME;
+				break;
 			default:
 				break;
 		}
@@ -1355,6 +1381,7 @@ static bool opencl_thread_init(struct thr_info *thr)
 	case KL_CKOLIVAS:
 	case KL_PSW:
 	case KL_ZUIKKIS:
+	case KL_NSCRYPT:
 		thrdata->queue_kernel_parameters = &queue_scrypt_kernel;
 		break;
 	default:

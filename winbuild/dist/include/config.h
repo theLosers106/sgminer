@@ -8,6 +8,7 @@
 #define CKOLIVAS_KERNNAME "ckolivas"
 #define ZUIKKIS_KERNNAME "zuikkis"
 #define PSW_KERNNAME "psw"
+#define NSCRYPT_KERNNAME "nscrypt"
 
 #if defined(_MSC_VER)
 
