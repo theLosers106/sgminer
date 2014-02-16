@@ -1,0 +1,6 @@
+#define ALEXKARNEW_KERNNAME "alexkarnew"
+#define ALEXKAROLD_KERNNAME "alexkarold"
+#define CKOLIVAS_KERNNAME "ckolivas"
+#define ZUIKKIS_KERNNAME "zuikkis"
+#define PSW_KERNNAME "psw"
+#define NSCRYPT_KERNNAME "nscrypt"
