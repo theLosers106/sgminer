@@ -458,6 +458,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 			applog(LOG_WARNING, "Kernel nscrypt is experimental.");
 			strcpy(filename, NSCRYPT_KERNNAME".cl");
 			strcpy(binaryfilename, NSCRYPT_KERNNAME);
+			use_nscrypt = true;
 			break;
 		case KL_NONE: /* Shouldn't happen */
 			break;
@@ -782,7 +783,7 @@ built:
 		return NULL;
 	}
 
-	cl_uint bsize = opt_nscrypt ? 2048 : 1024;
+	cl_uint bsize = use_nscrypt ? 2048 : 1024;
 
 	size_t ipt = (bsize / cgpu->lookup_gap + (bsize % cgpu->lookup_gap > 0));
 	size_t bufsize = 128 * ipt * cgpu->thread_concurrency;

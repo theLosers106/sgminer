@@ -1024,7 +1024,7 @@ static cl_int queue_scrypt_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_u
 	uint32_t timestamp;
 	cl_uint nfactor = 10;    // scrypt default
 
-	if (opt_nscrypt) {
+	if (use_nscrypt) {
 		timestamp = bswap_32(*((uint32_t *)(blk->work->data + 17*4)));
  		nfactor = vert_GetNfactor(timestamp) + 1;
 	}
@@ -1039,7 +1039,7 @@ static cl_int queue_scrypt_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_u
 	CL_SET_VARG(4, &midstate[0]);
 	CL_SET_VARG(4, &midstate[16]);
 	CL_SET_ARG(le_target);
-	if (opt_nscrypt) {
+	if (use_nscrypt) {
 		CL_SET_ARG(nfactor);
 	}
 
@@ -1050,7 +1050,7 @@ static void set_threads_hashes(unsigned int vectors, unsigned int compute_shader
 			       unsigned int minthreads, __maybe_unused int *intensity, __maybe_unused int *xintensity, __maybe_unused int *rawintensity)
 {
 	unsigned int threads = 0;
-	if (opt_nscrypt) {
+	if (use_nscrypt) {
 		// new intensity calculation based on shader count
 		threads = (compute_shaders * minthreads << (MAX_INTENSITY-19)) >> (MAX_INTENSITY - *intensity);
  

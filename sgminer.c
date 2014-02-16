@@ -101,7 +101,7 @@ int opt_dynamic_interval = 7;
 int opt_g_threads = -1;
 int gpu_threads;
 bool opt_restart = true;
-bool opt_nscrypt = false;
+bool use_nscrypt = false;
 
 struct list_head scan_devices;
 static bool devices_enabled[MAX_DEVICES];
@@ -1270,9 +1270,6 @@ static struct opt_table opt_config_table[] = {
 	OPT_WITH_ARG("--sched-stop",
 		     set_schedtime, NULL, &schedstop,
 		     "Set a time of day in HH:MM to stop mining (will quit without a start time)"),
-	OPT_WITHOUT_ARG("--nscrypt",
-			opt_set_bool, &opt_nscrypt,
-			"Use the scrypt-vert algorithm for mining (NO scyrpt!)"),
 	OPT_WITH_ARG("--shaders",
 		     set_shaders, NULL, NULL,
 		     "GPU shaders per card for tuning scrypt, comma separated"),

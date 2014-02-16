@@ -981,7 +981,7 @@ extern bool opt_restart;
 extern bool opt_worktime;
 extern int swork_id;
 extern int opt_tcp_keepalive;
-extern bool opt_nscrypt;
+extern bool use_nscrypt;
 
 #if LOCK_TRACKING
 extern pthread_mutex_t lockstat_lock;
