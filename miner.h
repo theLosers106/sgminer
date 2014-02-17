@@ -2,6 +2,7 @@
 #define __MINER_H__
 
 #include "config.h"
+#include "kernels.h"
 
 #include <stdbool.h>
 #include <stdint.h>

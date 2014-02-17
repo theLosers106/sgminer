@@ -77,7 +77,6 @@
 
 #define SGMINER_PREFIX ""
 
-#include "kernels.h"
 #include "gitversion.h"
 #include "winbuild.h"
 
