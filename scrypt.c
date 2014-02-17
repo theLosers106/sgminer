@@ -427,7 +427,7 @@ void scrypt_regenhash(struct work *work)
 
 	if (use_nscrypt) {
 		scratchbuf = (char *)alloca((1 << nfactor) * 128 + 512);
-		scrypt_1024_1_1_256_sp(data, scratchbuf, ohash, (1 << nfactor));
+		scrypt_n_1_1_256_sp(data, scratchbuf, ohash, (1 << nfactor));
 	}
 	else {
 		scratchbuf = (char *)alloca(SCRATCHBUF_SIZE);
