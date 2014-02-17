@@ -431,7 +431,7 @@ void scrypt_regenhash(struct work *work)
 	}
 	else {
 		scratchbuf = (char *)alloca(SCRATCHBUF_SIZE);
-		scrypt_1024_1_1_256_sp(data, scratchbuf, ohash, 1024);
+		scrypt_1024_1_1_256_sp(data, scratchbuf, ohash);
 	}
 
 	flip32(ohash, ohash);
