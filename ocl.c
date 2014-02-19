@@ -496,7 +496,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 		cgpu->thread_concurrency = sixtyfours * 64;
 		if (cgpu->shaders && cgpu->thread_concurrency > cgpu->shaders) {
 			cgpu->thread_concurrency -= cgpu->thread_concurrency % cgpu->shaders;
-			size_t tc_limit = cgpu->shaders * use_nscrypt ? 11 : 5;
+			size_t tc_limit = cgpu->shaders * (use_nscrypt ? 11 : 5);
 			if (cgpu->thread_concurrency > tc_limit)
 				cgpu->thread_concurrency = tc_limit;
 		}
