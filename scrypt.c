@@ -357,8 +357,6 @@ salsa20_8(uint32_t B[16], const uint32_t Bx[16])
    scratchpad size needs to be at least 63 + (128 * r * p) + (256 * r + 64) + (128 * r * N) bytes
  */
 
-#define scrypt_1024_1_1_256_sp(input, scratchpad, ostate)  scrypt_n_1_1_256_sp(input, scratchpad, ostate, 1024)
-
 static void scrypt_n_1_1_256_sp(const uint32_t* input, char* scratchpad, uint32_t *ostate, const cl_uint n)
 {
 	uint32_t * V;
@@ -405,34 +403,24 @@ static void scrypt_n_1_1_256_sp(const uint32_t* input, char* scratchpad, uint32_
 	PBKDF2_SHA256_80_128_32(input, X, ostate);
 }
 
-/* 131583 rounded up to 4 byte alignment */
-#define SCRATCHBUF_SIZE	(131584)
-
 void scrypt_regenhash(struct work *work)
 {
 	uint32_t data[20];
 	char *scratchbuf;
-	uint32_t timestamp;
 	cl_uint nfactor = 10;    // scrypt default
 	uint32_t *nonce = (uint32_t *)(work->data + 76);
 	uint32_t *ohash = (uint32_t *)(work->hash);
 
 	if (use_nscrypt) {
-		timestamp = bswap_32(*((uint32_t *)(work->data + 17*4)));
+		uint32_t timestamp = bswap_32(*((uint32_t *)(work->data + 17*4)));
  		nfactor = vert_GetNfactor(timestamp) + 1;
 	}
 
 	be32enc_vect(data, (const uint32_t *)work->data, 19);
 	data[19] = htobe32(*nonce);
 
-	if (use_nscrypt) {
-		scratchbuf = (char *)alloca((1 << nfactor) * 128 + 512);
-		scrypt_n_1_1_256_sp(data, scratchbuf, ohash, (1 << nfactor));
-	}
-	else {
-		scratchbuf = (char *)alloca(SCRATCHBUF_SIZE);
-		scrypt_1024_1_1_256_sp(data, scratchbuf, ohash);
-	}
+	scratchbuf = (char *)alloca((1 << nfactor) * 128 + 512);
+	scrypt_n_1_1_256_sp(data, scratchbuf, ohash, (1 << nfactor));
 
 	flip32(ohash, ohash);
 }
@@ -445,11 +433,13 @@ int scrypt_test(unsigned char *pdata, const unsigned char *ptarget, uint32_t non
 	uint32_t tmp_hash7, Htarg = le32toh(((const uint32_t *)ptarget)[7]);
 	uint32_t data[20], ohash[8];
 	char *scratchbuf;
+	cl_uint nfactor = 10;    // scrypt default
 
 	be32enc_vect(data, (const uint32_t *)pdata, 19);
 	data[19] = htobe32(nonce);
-	scratchbuf = (char *)alloca(SCRATCHBUF_SIZE);
-	scrypt_1024_1_1_256_sp(data, scratchbuf, ohash);
+
+	scratchbuf = (char *)alloca((1 << nfactor) * 128 + 512);
+	scrypt_n_1_1_256_sp(data, scratchbuf, ohash, (1 << nfactor));
 	tmp_hash7 = be32toh(ohash[7]);
 
 	applog(LOG_DEBUG, "htarget %08lx diff1 %08lx hash %08lx",
@@ -474,10 +464,11 @@ bool scanhash_scrypt(struct thr_info *thr, const unsigned char __maybe_unused *p
 	uint32_t tmp_hash7;
 	uint32_t Htarg = le32toh(((const uint32_t *)ptarget)[7]);
 	bool ret = false;
+	cl_uint nfactor = 10;    // scrypt default
 
 	be32enc_vect(data, (const uint32_t *)pdata, 19);
 
-	scratchbuf = (char *)malloc(SCRATCHBUF_SIZE);
+	scratchbuf = (char *)alloca((1 << nfactor) * 128 + 512);
 	if (unlikely(!scratchbuf)) {
 		applog(LOG_ERR, "Failed to malloc scratchbuf in scanhash_scrypt");
 		return ret;
@@ -488,7 +479,7 @@ bool scanhash_scrypt(struct thr_info *thr, const unsigned char __maybe_unused *p
 
 		*nonce = ++n;
 		data[19] = htobe32(n);
-		scrypt_1024_1_1_256_sp(data, scratchbuf, ostate);
+		scrypt_n_1_1_256_sp(data, scratchbuf, ohash, (1 << nfactor));
 		tmp_hash7 = be32toh(ostate[7]);
 
 		if (unlikely(tmp_hash7 <= Htarg)) {
