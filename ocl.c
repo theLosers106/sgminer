@@ -384,10 +384,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 		return NULL;
 	}
 
-	if (cgpu->shaders) {
-		clState->compute_shaders = cgpu->shaders;
-	}
-	else {
+	if (!cgpu->shaders) {
 		// AMD architechture got 64 compute shaders per compute unit.
 		// Source: http://www.amd.com/us/Documents/GCN_Architecture_whitepaper.pdf
 		clState->compute_shaders = compute_units * 64;

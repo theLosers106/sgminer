@@ -1046,13 +1046,13 @@ static cl_int queue_scrypt_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_u
 	return status;
 }
 
-static void set_threads_hashes(unsigned int vectors, unsigned int compute_shaders, int64_t *hashes, size_t *globalThreads,
+static void set_threads_hashes(unsigned int vectors, size_t shaders, int64_t *hashes, size_t *globalThreads,
 			       unsigned int minthreads, __maybe_unused int *intensity, __maybe_unused int *xintensity, __maybe_unused int *rawintensity)
 {
 	unsigned int threads = 0;
-	if (use_nscrypt) {
+	if (use_nscrypt && shaders) {
 		// new intensity calculation based on shader count
-		threads = (compute_shaders * minthreads << (MAX_INTENSITY-19)) >> (MAX_INTENSITY - *intensity);
+		threads = (shaders * minthreads << (MAX_INTENSITY-19)) >> (MAX_INTENSITY - *intensity);
  
 		if (threads < minthreads)
 			threads = minthreads;
@@ -1064,7 +1064,7 @@ static void set_threads_hashes(unsigned int vectors, unsigned int compute_shader
 			if (*rawintensity > 0) {
 				threads = *rawintensity;
 			} else if (*xintensity > 0) {
-				threads = compute_shaders * *xintensity;
+				threads = shaders * *xintensity;
 			} else {
 				threads = 1 << *intensity;
 			}
@@ -1455,7 +1455,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 		gpu->intervals = 0;
 	}
 
-	set_threads_hashes(clState->vwidth, clState->compute_shaders, &hashes, globalThreads, localThreads[0],
+	set_threads_hashes(clState->vwidth, gpu->shaders ? gpu->shaders : clState->compute_shaders, &hashes, globalThreads, localThreads[0],
 			   &gpu->intensity, &gpu->xintensity, &gpu->rawintensity);
 	if (hashes > gpu->max_hashes)
 		gpu->max_hashes = hashes;
