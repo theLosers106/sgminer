@@ -479,7 +479,7 @@ bool scanhash_scrypt(struct thr_info *thr, const unsigned char __maybe_unused *p
 
 		*nonce = ++n;
 		data[19] = htobe32(n);
-		scrypt_n_1_1_256_sp(data, scratchbuf, ohash, (1 << nfactor));
+		scrypt_n_1_1_256_sp(data, scratchbuf, ostate, (1 << nfactor));
 		tmp_hash7 = be32toh(ostate[7]);
 
 		if (unlikely(tmp_hash7 <= Htarg)) {
@@ -495,6 +495,6 @@ bool scanhash_scrypt(struct thr_info *thr, const unsigned char __maybe_unused *p
 		}
 	}
 
-	free(scratchbuf);;
+	free(scratchbuf);
 	return ret;
 }
