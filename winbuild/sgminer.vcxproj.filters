@@ -163,6 +163,9 @@
     <ClInclude Include="dist\include\winbuild.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\kernels.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.txt" />

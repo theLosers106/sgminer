@@ -2782,3 +2782,45 @@ bool cg_completion_timeout(void *fn, void *fnarg, int timeout)
 		pthread_cancel(pthread);
 	return !ret;
 }
+
+const unsigned char minNfactor = 10;
+const unsigned char maxNfactor = 30;
+const unsigned int vert_nChainStartTime = 1389306217;
+
+unsigned char vert_GetNfactor(const long int nTimestamp) {
+    int l, n;
+    long int s;
+
+    l = 0;
+
+    if (nTimestamp <= vert_nChainStartTime) {
+        return minNfactor;
+    }
+
+    s = nTimestamp - vert_nChainStartTime;
+    while ((s >> 1) > 3) {
+      l += 1;
+      s >>= 1;
+    }
+
+    s &= 3;
+    n = (l * 158 + s * 28 - 2670) / 100;
+
+    if (n < 0) 
+      n = 0;
+
+    if (n > 255)
+        printf( "GetNfactor(%ld) - something wrong(n == %d)\n", nTimestamp, n );
+
+    unsigned char N = ((unsigned char) n);
+    //printf("GetNfactor: %d -> %d %d : %d / %d\n", nTimestamp - nChainStartTime, l, s, n, min(max(N, minNfactor), maxNfactor));
+
+    if (N < minNfactor) {
+      return minNfactor;
+    } else if (N > maxNfactor) {
+      return maxNfactor;
+    }
+
+    return N;
+    //return min(max(N, minNfactor), maxNfactor);
+}

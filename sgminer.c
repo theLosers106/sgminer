@@ -102,6 +102,7 @@ int opt_dynamic_interval = 7;
 int opt_g_threads = -1;
 int gpu_threads;
 bool opt_restart = true;
+bool use_nscrypt = false;
 
 struct list_head scan_devices;
 static bool devices_enabled[MAX_DEVICES];
@@ -4217,6 +4218,9 @@ void write_config(FILE *fcfg)
 					break;
 				case KL_ZUIKKIS:
 					fprintf(fcfg, ZUIKKIS_KERNNAME);
+					break;
+				case KL_NSCRYPT:
+					fprintf(fcfg, NSCRYPT_KERNNAME);
 					break;
 			}
 		}

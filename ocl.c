@@ -383,9 +383,12 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 		applog(LOG_ERR, "Error %d: Failed to clGetDeviceInfo when trying to get CL_DEVICE_MAX_COMPUTE_UNITS", status);
 		return NULL;
 	}
-	// AMD architechture got 64 compute shaders per compute unit.
-	// Source: http://www.amd.com/us/Documents/GCN_Architecture_whitepaper.pdf
-	clState->compute_shaders = compute_units * 64;
+
+	if (!cgpu->shaders) {
+		// AMD architechture got 64 compute shaders per compute unit.
+		// Source: http://www.amd.com/us/Documents/GCN_Architecture_whitepaper.pdf
+		clState->compute_shaders = compute_units * 64;
+	}
 	applog(LOG_DEBUG, "Max shaders calculated %d", (int)(clState->compute_shaders));
 
 	status = clGetDeviceInfo(devices[gpu], CL_DEVICE_MAX_MEM_ALLOC_SIZE , sizeof(cl_ulong), (void *)&cgpu->max_alloc, NULL);
@@ -454,6 +457,12 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 			/* Kernel only supports worksize 256 */
 			cgpu->work_size = 256;
 			break;
+		case KL_NSCRYPT:
+			applog(LOG_WARNING, "Kernel nscrypt is experimental.");
+			strcpy(filename, NSCRYPT_KERNNAME".cl");
+			strcpy(binaryfilename, NSCRYPT_KERNNAME);
+			use_nscrypt = true;
+			break;
 		case KL_NONE: /* Shouldn't happen */
 			break;
 	}
@@ -478,20 +487,28 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize)
 	} else
 		cgpu->lookup_gap = cgpu->opt_lg;
 
+	// TODO: check if this params can be the same for both scrypt and nscrypt
+	unsigned int sixtyfours = use_nscrypt ? ((cgpu->max_alloc*cgpu->lookup_gap) / (2048*128) / 64 - 1) : (cgpu->max_alloc / 131072 / 64 - 1);
 	if (!cgpu->opt_tc) {
-		unsigned int sixtyfours;
-
-		sixtyfours =  cgpu->max_alloc / 131072 / 64 - 1;
 		cgpu->thread_concurrency = sixtyfours * 64;
 		if (cgpu->shaders && cgpu->thread_concurrency > cgpu->shaders) {
 			cgpu->thread_concurrency -= cgpu->thread_concurrency % cgpu->shaders;
-			if (cgpu->thread_concurrency > cgpu->shaders * 5)
-				cgpu->thread_concurrency = cgpu->shaders * 5;
+			size_t tc_limit = cgpu->shaders * (use_nscrypt ? 11 : 5);
+			if (cgpu->thread_concurrency > tc_limit)
+				cgpu->thread_concurrency = tc_limit;
 		}
 		applog(LOG_DEBUG, "GPU %d: selecting thread concurrency of %d", gpu, (int)(cgpu->thread_concurrency));
-	} else
+	} else {
 		cgpu->thread_concurrency = cgpu->opt_tc;
+	}
 
+	// TODO: check if this works with standard scrypt, too
+	if (use_nscrypt) {
+		if (((cgpu->thread_concurrency * (2048*128)) / cgpu->lookup_gap) > cgpu->max_alloc) {
+			cgpu->thread_concurrency = sixtyfours * 64;
+			applog(LOG_INFO, "GPU %d: thread concurrency too high, set to %d", gpu, (int)(cgpu->thread_concurrency));
+		}
+	}
 
 	FILE *binaryfile;
 	size_t *binary_sizes;
@@ -777,7 +794,9 @@ built:
 		return NULL;
 	}
 
-	size_t ipt = (1024 / cgpu->lookup_gap + (1024 % cgpu->lookup_gap > 0));
+	cl_uint bsize = use_nscrypt ? 2048 : 1024;
+
+	size_t ipt = (bsize / cgpu->lookup_gap + (bsize % cgpu->lookup_gap > 0));
 	size_t bufsize = 128 * ipt * cgpu->thread_concurrency;
 
 	/* Use the max alloc value which has been rounded to a power of

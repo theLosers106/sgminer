@@ -280,6 +280,7 @@ exit 0</Command>
     <ClInclude Include="..\driver-opencl.h" />
     <ClInclude Include="..\elist.h" />
     <ClInclude Include="..\findnonce.h" />
+    <ClInclude Include="..\kernels.h" />
     <ClInclude Include="..\logging.h" />
     <ClInclude Include="..\miner.h" />
     <ClInclude Include="..\ocl.h" />

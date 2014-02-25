@@ -2,6 +2,7 @@
 #define __MINER_H__
 
 #include "config.h"
+#include "kernels.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -383,6 +384,7 @@ enum cl_kernels {
 	KL_CKOLIVAS,
 	KL_PSW,
 	KL_ZUIKKIS,
+	KL_NSCRYPT,
 };
 
 enum dev_reason {
@@ -986,6 +988,7 @@ extern bool opt_restart;
 extern bool opt_worktime;
 extern int swork_id;
 extern int opt_tcp_keepalive;
+extern bool use_nscrypt;
 
 #if LOCK_TRACKING
 extern pthread_mutex_t lockstat_lock;
