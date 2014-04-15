@@ -16,7 +16,7 @@ AC_INIT([sgminer], [v_ver], [veox@wemakethings.net], [sgminer], [https://github.
 AC_PREREQ(2.59)
 AC_CANONICAL_SYSTEM
 AC_CONFIG_MACRO_DIR([m4])
-AC_CONFIG_SRCDIR([sgminer.c])
+AC_CONFIG_SRCDIR([miner.c])
 AC_CONFIG_HEADERS([config.h])
 
 AM_INIT_AUTOMAKE([foreign subdir-objects])
