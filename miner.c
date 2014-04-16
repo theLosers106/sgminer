@@ -50,6 +50,8 @@ char *curly = ":D";
 
 #include "compat.h"
 #include "miner.h"
+#include "configuration.h"
+
 #include "findnonce.h"
 #include "adl.h"
 #include "driver-opencl.h"
@@ -3874,28 +3876,6 @@ retry:
 	opt_loginput = false;
 }
 #endif /* HAVE_CURSES */
-
-void default_save_file(char *filename)
-{
-	if (default_config && *default_config) {
-		strcpy(filename, default_config);
-		return;
-	}
-
-#if defined(unix) || defined(__APPLE__)
-	if (getenv("HOME") && *getenv("HOME")) {
-	        strcpy(filename, getenv("HOME"));
-		strcat(filename, "/");
-	}
-	else
-		strcpy(filename, "");
-	strcat(filename, ".sgminer/");
-	mkdir(filename, 0777);
-#else
-	strcpy(filename, "");
-#endif
-	strcat(filename, def_conf);
-}
 
 #ifdef HAVE_CURSES
 static void set_options(void)

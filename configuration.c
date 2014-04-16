@@ -9,9 +9,7 @@
 
 #include "configuration.h"
 
-char *cnfbuf = NULL;
-
-static char *load_config(const char *arg, void __maybe_unused *unused)
+char *load_config(const char *arg, void __maybe_unused *unused)
 {
 	json_error_t err;
 	json_t *config;
@@ -46,9 +44,7 @@ static char *load_config(const char *arg, void __maybe_unused *unused)
 	return parse_config(config, true, -1);
 }
 
-static int fileconf_load;
-
-static char *parse_config(json_t *config, bool fileconf, int parent_iteration)
+char *parse_config(json_t *config, bool fileconf, int parent_iteration)
 {
 	static char err_buf[200];
 	struct opt_table *opt;
@@ -124,7 +120,7 @@ static char *parse_config(json_t *config, bool fileconf, int parent_iteration)
 	return NULL;
 }
 
-static char *set_default_config(const char *arg)
+char *set_default_config(const char *arg)
 {
 	opt_set_charp(arg, &default_config);
 
@@ -153,7 +149,7 @@ void default_save_file(char *filename)
 	strcat(filename, def_conf);
 }
 
-static void load_default_config(void)
+void load_default_config(void)
 {
 	cnfbuf = (char *)malloc(PATH_MAX);
 
@@ -167,7 +163,7 @@ static void load_default_config(void)
 	}
 }
 
-static char *set_algo(const char *arg)
+char *set_algo(const char *arg)
 {
 	if ((json_array_index < 0) || (total_pools == 0)) {
 		set_algorithm(opt_algorithm, arg);
@@ -179,7 +175,7 @@ static char *set_algo(const char *arg)
 	return NULL;
 }
 
-static char *set_nfactor(const char *arg)
+char *set_nfactor(const char *arg)
 {
 	if ((json_array_index < 0) || (total_pools == 0)) {
 		set_algorithm_nfactor(opt_algorithm, (const uint8_t) atoi(arg));
@@ -192,49 +188,49 @@ static char *set_nfactor(const char *arg)
 	return NULL;
 }
 
-static char *set_api_allow(const char *arg)
+char *set_api_allow(const char *arg)
 {
 	opt_set_charp(arg, &opt_api_allow);
 
 	return NULL;
 }
 
-static char *set_api_groups(const char *arg)
+char *set_api_groups(const char *arg)
 {
 	opt_set_charp(arg, &opt_api_groups);
 
 	return NULL;
 }
 
-static char *set_api_description(const char *arg)
+char *set_api_description(const char *arg)
 {
 	opt_set_charp(arg, &opt_api_description);
 
 	return NULL;
 }
 
-static char *set_api_mcast_addr(const char *arg)
+char *set_api_mcast_addr(const char *arg)
 {
 	opt_set_charp(arg, &opt_api_mcast_addr);
 
 	return NULL;
 }
 
-static char *set_api_mcast_code(const char *arg)
+char *set_api_mcast_code(const char *arg)
 {
 	opt_set_charp(arg, &opt_api_mcast_code);
 
 	return NULL;
 }
 
-static char *set_api_mcast_des(const char *arg)
+char *set_api_mcast_des(const char *arg)
 {
 	opt_set_charp(arg, &opt_api_mcast_des);
 
 	return NULL;
 }
 
-static char *set_null(const char __maybe_unused *arg)
+char *set_null(const char __maybe_unused *arg)
 {
 	return NULL;
 }
@@ -255,7 +251,7 @@ char *set_temp_cutoff(char *arg)
 	return NULL;
 }
 
-static char* set_sharelog(char *arg)
+char* set_sharelog(char *arg)
 {
 	char *r = "";
 	long int i = strtol(arg, &r, 10);
@@ -277,7 +273,7 @@ static char* set_sharelog(char *arg)
 	return NULL;
 }
 
-static char *set_schedtime(const char *arg, struct schedtime *st)
+char *set_schedtime(const char *arg, struct schedtime *st)
 {
 	if (sscanf(arg, "%d:%d", &st->tm.tm_hour, &st->tm.tm_min) != 2)
 		return "Invalid time set, should be HH:MM";
@@ -287,7 +283,7 @@ static char *set_schedtime(const char *arg, struct schedtime *st)
 	return NULL;
 }
 
-static char *set_pool_priority(char *arg)
+char *set_pool_priority(char *arg)
 {
 	struct pool *pool = get_current_pool();
 
@@ -297,7 +293,7 @@ static char *set_pool_priority(char *arg)
 	return NULL;
 }
 
-static char *set_pool_description(char *arg)
+char *set_pool_description(char *arg)
 {
 	struct pool *pool = get_current_pool();
 
@@ -307,7 +303,7 @@ static char *set_pool_description(char *arg)
 	return NULL;
 }
 
-static char *set_pass(const char *arg)
+char *set_pass(const char *arg)
 {
 	struct pool *pool = get_current_pool();
 
@@ -316,7 +312,7 @@ static char *set_pass(const char *arg)
 	return NULL;
 }
 
-static char *set_userpass(const char *arg)
+char *set_userpass(const char *arg)
 {
 	struct pool *pool = get_current_pool();
 	char *updup;
@@ -333,7 +329,7 @@ static char *set_userpass(const char *arg)
 	return NULL;
 }
 
-static char *set_quota(char *arg)
+char *set_quota(char *arg)
 {
 	char *semicolon = strchr(arg, ';'), *url;
 	size_t len, qlen;
@@ -363,7 +359,7 @@ static char *set_quota(char *arg)
 	return NULL;
 }
 
-static char *set_user(const char *arg)
+char *set_user(const char *arg)
 {
 	struct pool *pool = get_current_pool();
 
@@ -372,7 +368,7 @@ static char *set_user(const char *arg)
 	return NULL;
 }
 
-static char *set_pool_state(char *arg)
+char *set_pool_state(char *arg)
 {
 	struct pool *pool = get_current_pool();
 
@@ -392,7 +388,7 @@ static char *set_pool_state(char *arg)
 	return NULL;
 }
 
-static char *set_url(char *arg)
+char *set_url(char *arg)
 {
 	struct pool *pool = add_url();
 
@@ -401,7 +397,7 @@ static char *set_url(char *arg)
 }
 
 
-static char *set_pool_algorithm(const char *arg)
+char *set_pool_algorithm(const char *arg)
 {
 	struct pool *pool = get_current_pool();
 
@@ -411,7 +407,7 @@ static char *set_pool_algorithm(const char *arg)
 	return NULL;
 }
 
-static char *set_pool_nfactor(const char *arg)
+char *set_pool_nfactor(const char *arg)
 {
 	struct pool *pool = get_current_pool();
 
@@ -421,7 +417,7 @@ static char *set_pool_nfactor(const char *arg)
 	return NULL;
 }
 
-static char *set_pool_name(char *arg)
+char *set_pool_name(char *arg)
 {
 	struct pool *pool = get_current_pool();
 
@@ -431,7 +427,7 @@ static char *set_pool_name(char *arg)
 	return NULL;
 }
 
-static char *set_poolname_deprecated(char *arg)
+char *set_poolname_deprecated(char *arg)
 {
 	applog(LOG_ERR, "Specifying pool name by --poolname is deprecated. Use --name instead.");
 	set_pool_name(arg);
@@ -439,25 +435,25 @@ static char *set_poolname_deprecated(char *arg)
 	return NULL;
 }
 
-static char *set_balance(enum pool_strategy *strategy)
+char *set_balance(enum pool_strategy *strategy)
 {
 	*strategy = POOL_BALANCE;
 	return NULL;
 }
 
-static char *set_loadbalance(enum pool_strategy *strategy)
+char *set_loadbalance(enum pool_strategy *strategy)
 {
 	*strategy = POOL_LOADBALANCE;
 	return NULL;
 }
 
-static char *set_rotate(const char *arg, int *i)
+char *set_rotate(const char *arg, int *i)
 {
 	pool_strategy = POOL_ROTATE;
 	return set_int_range(arg, i, 0, 9999);
 }
 
-static char *set_rr(enum pool_strategy *strategy)
+char *set_rr(enum pool_strategy *strategy)
 {
 	*strategy = POOL_ROUNDROBIN;
 	return NULL;
@@ -476,22 +472,22 @@ char *set_int_range(const char *arg, int *i, int min, int max)
 	return NULL;
 }
 
-static char *set_int_0_to_9999(const char *arg, int *i)
+char *set_int_0_to_9999(const char *arg, int *i)
 {
 	return set_int_range(arg, i, 0, 9999);
 }
 
-static char *set_int_1_to_65535(const char *arg, int *i)
+char *set_int_1_to_65535(const char *arg, int *i)
 {
 	return set_int_range(arg, i, 1, 65535);
 }
 
-static char *set_int_0_to_10(const char *arg, int *i)
+char *set_int_0_to_10(const char *arg, int *i)
 {
 	return set_int_range(arg, i, 0, 10);
 }
 
-static char *set_int_1_to_10(const char *arg, int *i)
+char *set_int_1_to_10(const char *arg, int *i)
 {
 	return set_int_range(arg, i, 1, 10);
 }
@@ -502,7 +498,7 @@ void get_intrange(char *arg, int *val1, int *val2)
 		*val2 = *val1;
 }
 
-static char *set_devices(char *arg)
+char *set_devices(char *arg)
 {
 	int i, val1 = 0, val2 = 0;
 	char *nextptr;
@@ -545,7 +541,7 @@ static char *set_devices(char *arg)
 	return NULL;
 }
 
-static struct pool* get_current_pool()
+struct pool* get_current_pool()
 {
 	while ((json_array_index + 1) > total_pools)
 		add_pool();
@@ -559,7 +555,7 @@ static struct pool* get_current_pool()
 	return pools[json_array_index];
 }
 
-static char *enable_debug(bool *flag)
+char *enable_debug(bool *flag)
 {
 	*flag = true;
 	/* Turn on verbose output, too. */
