@@ -7,6 +7,8 @@
  * your option) any later version.  See COPYING for more details.
  */
 
+#include "configuration.h"
+
 char *cnfbuf = NULL;
 
 static char *load_config(const char *arg, void __maybe_unused *unused)
@@ -129,7 +131,27 @@ static char *set_default_config(const char *arg)
 	return NULL;
 }
 
-void default_save_file(char *filename);
+void default_save_file(char *filename)
+{
+	if (default_config && *default_config) {
+		strcpy(filename, default_config);
+		return;
+	}
+
+#if defined(unix) || defined(__APPLE__)
+	if (getenv("HOME") && *getenv("HOME")) {
+	        strcpy(filename, getenv("HOME"));
+		strcat(filename, "/");
+	}
+	else
+		strcpy(filename, "");
+	strcat(filename, ".sgminer/");
+	mkdir(filename, 0777);
+#else
+	strcpy(filename, "");
+#endif
+	strcat(filename, def_conf);
+}
 
 static void load_default_config(void)
 {
@@ -523,7 +545,6 @@ static char *set_devices(char *arg)
 	return NULL;
 }
 
-/* Used in configuration parsing (get pool being set up). */
 static struct pool* get_current_pool()
 {
 	while ((json_array_index + 1) > total_pools)
