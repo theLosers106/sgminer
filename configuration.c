@@ -7,7 +7,47 @@
  * your option) any later version.  See COPYING for more details.
  */
 
+/* TODO: four-space whitespace */
+
 #include "configuration.h"
+
+/* Used in config parsing, e.g. pool array. */
+static int json_array_index = -1;
+
+static int total_urls;
+
+static const char def_conf[] = "sgminer.conf";
+static char *default_config;
+static int include_count;
+
+static struct pool *add_url(void)
+{
+	total_urls++;
+	if (total_urls > total_pools)
+		add_pool();
+	return pools[total_urls - 1];
+}
+
+static void setup_url(struct pool *pool, char *arg)
+{
+	arg = get_proxy(arg, pool);
+
+	if (detect_stratum(pool, arg))
+		return;
+
+	opt_set_charp(arg, &pool->rpc_url);
+	if (strncmp(arg, "http://", 7) &&
+	    strncmp(arg, "https://", 8)) {
+		char *httpinput;
+
+		httpinput = (char *)malloc(255);
+		if (!httpinput)
+			quit(1, "Failed to malloc httpinput");
+		strcpy(httpinput, "http://");
+		strncat(httpinput, arg, 248);
+		pool->rpc_url = httpinput;
+	}
+}
 
 char *load_config(const char *arg, void __maybe_unused *unused)
 {
@@ -119,6 +159,273 @@ char *parse_config(json_t *config, bool fileconf, int parent_iteration)
 
 	return NULL;
 }
+
+/* add a mutex if this needs to be thread safe in the future */
+static struct JE {
+	char *buf;
+	struct JE *next;
+} *jedata = NULL;
+
+static void json_escape_free()
+{
+	struct JE *jeptr = jedata;
+	struct JE *jenext;
+
+	jedata = NULL;
+
+	while (jeptr) {
+		jenext = jeptr->next;
+		free(jeptr->buf);
+		free(jeptr);
+		jeptr = jenext;
+	}
+}
+
+static char *json_escape(char *str)
+{
+	struct JE *jeptr;
+	char *buf, *ptr;
+
+	/* 2x is the max, may as well just allocate that */
+	ptr = buf = (char *)malloc(strlen(str) * 2 + 1);
+
+	jeptr = (struct JE *)malloc(sizeof(*jeptr));
+
+	jeptr->buf = buf;
+	jeptr->next = jedata;
+	jedata = jeptr;
+
+	while (*str) {
+		if (*str == '\\' || *str == '"')
+			*(ptr++) = '\\';
+
+		*(ptr++) = *(str++);
+	}
+
+	*ptr = '\0';
+
+	return buf;
+}
+
+void write_config(FILE *fcfg)
+{
+	int i;
+
+	/* Write pool values */
+	fputs("{\n\"pools\" : [", fcfg);
+	for(i = 0; i < total_pools; i++) {
+		struct pool *pool = pools[i];
+
+		/* Using get_pool_name() here is unsafe if opt_incognito is true. */
+		if (strcmp(pool->name, "") != 0) {
+			fprintf(fcfg, "\n\t\t\"name\" : \"%s\",", json_escape(pool->name));
+		}
+		if (strcmp(pool->description, "") != 0) {
+			fprintf(fcfg, "\n\t\t\"description\" : \"%s\",", json_escape(pool->description));
+		}
+		if (pool->quota != 1) {
+			fprintf(fcfg, "%s\n\t{\n\t\t\"quota\" : \"%s%s%s%d;%s\",", i > 0 ? "," : "",
+				pool->rpc_proxy ? json_escape((char *)proxytype(pool->rpc_proxytype)) : "",
+				pool->rpc_proxy ? json_escape(pool->rpc_proxy) : "",
+				pool->rpc_proxy ? "|" : "",
+				pool->quota,
+				json_escape(pool->rpc_url));
+		} else {
+			fprintf(fcfg, "%s\n\t{\n\t\t\"url\" : \"%s%s%s%s\",", i > 0 ? "," : "",
+				pool->rpc_proxy ? json_escape((char *)proxytype(pool->rpc_proxytype)) : "",
+				pool->rpc_proxy ? json_escape(pool->rpc_proxy) : "",
+				pool->rpc_proxy ? "|" : "",
+				json_escape(pool->rpc_url));
+		}
+		fprintf(fcfg, "\n\t\t\"user\" : \"%s\",", json_escape(pool->rpc_user));
+		fprintf(fcfg, "\n\t\t\"pass\" : \"%s\"\n\t}", json_escape(pool->rpc_pass));
+		}
+	fputs("\n]\n", fcfg);
+
+	/* Write only if there are usable GPUs */
+	if (nDevs) {
+		fputs(",\n\"intensity\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, gpus[i].dynamic ? "%sd" : "%s%d", i > 0 ? "," : "", gpus[i].intensity);
+
+		fputs("\",\n\"xintensity\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d", i > 0 ? "," : "", gpus[i].xintensity);
+
+		fputs("\",\n\"rawintensity\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d", i > 0 ? "," : "", gpus[i].rawintensity);
+
+		/* All current kernels only support vector=1 */
+		/* fputs("\",\n\"vectors\" : \"", fcfg); */
+		/* for(i = 0; i < nDevs; i++) */
+		/* 	fprintf(fcfg, "%s%d", i > 0 ? "," : "", */
+		/* 		gpus[i].vwidth); */
+
+		fputs("\",\n\"worksize\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d", i > 0 ? "," : "",
+				(int)gpus[i].work_size);
+
+		fputs("\",\n\"kernel\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++) {
+			fprintf(fcfg, "%s", i > 0 ? "," : "");
+			fprintf(fcfg, "%s", gpus[i].kernelname);
+		}
+
+		fputs("\",\n\"lookup-gap\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d", i > 0 ? "," : "",
+				(int)gpus[i].opt_lg);
+
+		fputs("\",\n\"thread-concurrency\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d", i > 0 ? "," : "",
+				(int)gpus[i].opt_tc);
+
+		fputs("\",\n\"shaders\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d", i > 0 ? "," : "",
+				(int)gpus[i].shaders);
+
+		fputs("\",\n\"gpu-threads\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d", i > 0 ? "," : "",
+				(int)gpus[i].threads);
+
+#ifdef HAVE_ADL
+		fputs("\",\n\"gpu-engine\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d-%d", i > 0 ? "," : "", gpus[i].min_engine, gpus[i].gpu_engine);
+
+		fputs("\",\n\"gpu-fan\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d-%d", i > 0 ? "," : "", gpus[i].min_fan, gpus[i].gpu_fan);
+
+		fputs("\",\n\"gpu-memclock\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d", i > 0 ? "," : "", gpus[i].gpu_memclock);
+
+		fputs("\",\n\"gpu-memdiff\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d", i > 0 ? "," : "", gpus[i].gpu_memdiff);
+
+		fputs("\",\n\"gpu-powertune\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d", i > 0 ? "," : "", gpus[i].gpu_powertune);
+
+		fputs("\",\n\"gpu-vddc\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%1.3f", i > 0 ? "," : "", gpus[i].gpu_vddc);
+
+		fputs("\",\n\"temp-cutoff\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d", i > 0 ? "," : "", gpus[i].cutofftemp);
+
+		fputs("\",\n\"temp-overheat\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d", i > 0 ? "," : "", gpus[i].adl.overtemp);
+
+		fputs("\",\n\"temp-target\" : \"", fcfg);
+		for(i = 0; i < nDevs; i++)
+			fprintf(fcfg, "%s%d", i > 0 ? "," : "", gpus[i].adl.targettemp);
+#endif
+
+		fputs("\"", fcfg);
+	}
+#ifdef HAVE_ADL
+	if (opt_reorder)
+		fprintf(fcfg, ",\n\"gpu-reorder\" : true");
+#endif
+
+	/* Simple bool and int options */
+	struct opt_table *opt;
+	for (opt = opt_config_table; opt->type != OPT_END; opt++) {
+		char *p, *name = strdup(opt->names);
+		for (p = strtok(name, "|"); p; p = strtok(NULL, "|")) {
+			if (p[1] != '-')
+				continue;
+			if (opt->type & OPT_NOARG &&
+			   ((void *)opt->cb == (void *)opt_set_bool || (void *)opt->cb == (void *)opt_set_invbool) &&
+			   (*(bool *)opt->u.arg == ((void *)opt->cb == (void *)opt_set_bool)))
+				fprintf(fcfg, ",\n\"%s\" : true", p+2);
+
+			if (opt->type & OPT_HASARG &&
+			   ((void *)opt->cb_arg == (void *)set_int_0_to_9999 ||
+			   (void *)opt->cb_arg == (void *)set_int_1_to_65535 ||
+			   (void *)opt->cb_arg == (void *)set_int_0_to_10 ||
+			   (void *)opt->cb_arg == (void *)set_int_1_to_10) && opt->desc != opt_hidden)
+				fprintf(fcfg, ",\n\"%s\" : \"%d\"", p+2, *(int *)opt->u.arg);
+		}
+	}
+
+	/* Special case options */
+	fprintf(fcfg, ",\n\"shares\" : \"%d\"", opt_shares);
+	if (pool_strategy == POOL_BALANCE)
+		fputs(",\n\"balance\" : true", fcfg);
+	if (pool_strategy == POOL_LOADBALANCE)
+		fputs(",\n\"load-balance\" : true", fcfg);
+	if (pool_strategy == POOL_ROUNDROBIN)
+		fputs(",\n\"round-robin\" : true", fcfg);
+	if (pool_strategy == POOL_ROTATE)
+		fprintf(fcfg, ",\n\"rotate\" : \"%d\"", opt_rotate_period);
+#if defined(unix) || defined(__APPLE__)
+	if (opt_stderr_cmd && *opt_stderr_cmd)
+		fprintf(fcfg, ",\n\"monitor\" : \"%s\"", json_escape(opt_stderr_cmd));
+#endif // defined(unix)
+	if (opt_kernel_path && *opt_kernel_path) {
+		char *kpath = strdup(opt_kernel_path);
+		if (kpath[strlen(kpath)-1] == '/')
+			kpath[strlen(kpath)-1] = 0;
+		fprintf(fcfg, ",\n\"kernel-path\" : \"%s\"", json_escape(kpath));
+	}
+	if (schedstart.enable)
+		fprintf(fcfg, ",\n\"sched-time\" : \"%d:%d\"", schedstart.tm.tm_hour, schedstart.tm.tm_min);
+	if (schedstop.enable)
+		fprintf(fcfg, ",\n\"stop-time\" : \"%d:%d\"", schedstop.tm.tm_hour, schedstop.tm.tm_min);
+	if (opt_socks_proxy && *opt_socks_proxy)
+		fprintf(fcfg, ",\n\"socks-proxy\" : \"%s\"", json_escape(opt_socks_proxy));
+	if (opt_devs_enabled) {
+		fprintf(fcfg, ",\n\"device\" : \"");
+		bool extra_devs = false;
+
+		for (i = 0; i < MAX_DEVICES; i++) {
+			if (devices_enabled[i]) {
+				int startd = i;
+
+				if (extra_devs)
+					fprintf(fcfg, ",");
+				while (i < MAX_DEVICES && devices_enabled[i + 1])
+					++i;
+				fprintf(fcfg, "%d", startd);
+				if (i > startd)
+					fprintf(fcfg, "-%d", i);
+			}
+		}
+		fprintf(fcfg, "\"");
+	}
+	if (opt_removedisabled)
+		fprintf(fcfg, ",\n\"remove-disabled\" : true");
+	if (strcmp(opt_algorithm->name, "scrypt") != 0)
+		fprintf(fcfg, ",\n\"algorithm\" : \"%s\"", json_escape(opt_algorithm->name));
+	if (opt_api_allow)
+		fprintf(fcfg, ",\n\"api-allow\" : \"%s\"", json_escape(opt_api_allow));
+	if (strcmp(opt_api_mcast_addr, API_MCAST_ADDR) != 0)
+		fprintf(fcfg, ",\n\"api-mcast-addr\" : \"%s\"", json_escape(opt_api_mcast_addr));
+	if (strcmp(opt_api_mcast_code, API_MCAST_CODE) != 0)
+		fprintf(fcfg, ",\n\"api-mcast-code\" : \"%s\"", json_escape(opt_api_mcast_code));
+	if (*opt_api_mcast_des)
+		fprintf(fcfg, ",\n\"api-mcast-des\" : \"%s\"", json_escape(opt_api_mcast_des));
+	if (strcmp(opt_api_description, PACKAGE_STRING) != 0)
+		fprintf(fcfg, ",\n\"api-description\" : \"%s\"", json_escape(opt_api_description));
+	if (opt_api_groups)
+		fprintf(fcfg, ",\n\"api-groups\" : \"%s\"", json_escape(opt_api_groups));
+
+	fputs("\n}\n", fcfg);
+
+	json_escape_free();
+}
+
 
 char *set_default_config(const char *arg)
 {
@@ -234,8 +541,6 @@ char *set_null(const char __maybe_unused *arg)
 {
 	return NULL;
 }
-
-static char *temp_cutoff_str = NULL;
 
 char *set_temp_cutoff(char *arg)
 {
@@ -561,6 +866,23 @@ char *enable_debug(bool *flag)
 	/* Turn on verbose output, too. */
 	opt_log_output = true;
 	return NULL;
+}
+
+extern const char *opt_argv0;
+
+static char *opt_verusage_and_exit(const char *extra)
+{
+	printf("%s\n", packagename);
+	printf("%s", opt_usage(opt_argv0, extra));
+	fflush(stdout);
+	exit(0);
+}
+
+char *display_devs(int *ndevs)
+{
+	*ndevs = 0;
+	print_ndevs(ndevs);
+	exit(*ndevs);
 }
 
 /* These options are available from config file or commandline */
@@ -894,26 +1216,8 @@ static struct opt_table opt_config_table[] = {
 	OPT_ENDTABLE
 };
 
-
-extern const char *opt_argv0;
-
-static char *opt_verusage_and_exit(const char *extra)
-{
-	printf("%s\n", packagename);
-	printf("%s", opt_usage(opt_argv0, extra));
-	fflush(stdout);
-	exit(0);
-}
-
-char *display_devs(int *ndevs)
-{
-	*ndevs = 0;
-	print_ndevs(ndevs);
-	exit(*ndevs);
-}
-
 /* These options are available from commandline only */
-static struct opt_table opt_cmdline_table[] = {
+struct opt_table opt_cmdline_table[] = {
 	OPT_WITH_ARG("--config|-c",
 		     load_config, NULL, NULL,
 		     "Load a JSON-format configuration file\n"

@@ -4,8 +4,21 @@
 /* autoconf-generated definitions. */
 #include "config.h"
 
+#include <ccan/opt/opt.h>
+#include <jansson.h>
+
 /* Configuration file buffer. */
 char *cnfbuf = NULL;
+
+bool config_loaded;
+
+#define JSON_INCLUDE_CONF "include"
+#define JSON_LOAD_ERROR "JSON decode of file '%s' failed\n %s"
+#define JSON_LOAD_ERROR_LEN strlen(JSON_LOAD_ERROR)
+#define JSON_MAX_DEPTH 10
+#define JSON_MAX_DEPTH_ERR "Too many levels of JSON includes (limit 10) or a loop"
+
+static char *temp_cutoff_str = NULL;
 
 static int fileconf_load;
 
@@ -33,7 +46,9 @@ bool opt_protocol;
 bool opt_compact;
 bool opt_incognito;
 
+int opt_dynamic_interval = 7;
 const int opt_cutofftemp = 95;
+
 int opt_log_interval = 5;
 int opt_queue = 1;
 int opt_scantime = 7;
@@ -45,8 +60,18 @@ bool opt_delaynet;
 bool opt_disable_pool;
 bool opt_disable_client_reconnect = false;
 
+struct schedtime {
+    bool enable;
+    struct tm tm;
+};
+
+struct schedtime schedstart;
+struct schedtime schedstop;
+bool sched_paused;
+
 bool opt_fail_only;
 int opt_fail_switch_delay = 60;
+
 static bool opt_fix_protocol;
 static bool opt_lowmem;
 
@@ -58,8 +83,13 @@ char *opt_socks_proxy = NULL;
 
 char *opt_kernel_path;
 
+/* TODO: see which of these have to be exposed, remove others from header
+ * and declare static in code.
+ */
+
 char *load_config(const char *arg, void __maybe_unused *unused);
 char *parse_config(json_t *config, bool fileconf, int parent_iteration);
+void write_config(FILE *fcfg);
 
 char *set_default_config(const char *arg);
 
@@ -116,5 +146,8 @@ char *set_userpass(const char *arg);
 char *set_quota(char *arg);
 
 char *enable_debug(bool *flag);
+
+struct opt_table opt_config_table[];
+struct opt_table opt_cmdline_table[];
 
 #endif /* CONFIGURATION_H */
