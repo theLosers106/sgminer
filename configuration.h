@@ -147,7 +147,7 @@ char *set_quota(char *arg);
 
 char *enable_debug(bool *flag);
 
-struct opt_table opt_config_table[];
-struct opt_table opt_cmdline_table[];
+struct opt_table *opt_config_table;
+struct opt_table *opt_cmdline_table;
 
 #endif /* CONFIGURATION_H */
