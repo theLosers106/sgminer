@@ -53,7 +53,6 @@ char *curly = ":D";
 #include "findnonce.h"
 #include "adl.h"
 #include "driver-opencl.h"
-#include "bench_block.h"
 
 #include "algorithm.h"
 #include "scrypt.h"
@@ -82,7 +81,6 @@ static char packagename[256];
 
 bool opt_work_update;
 bool opt_protocol;
-static bool opt_benchmark;
 bool have_longpoll;
 bool want_per_device_stats;
 bool use_syslog;
@@ -1182,9 +1180,6 @@ static struct opt_table opt_config_table[] = {
 	OPT_WITHOUT_ARG("--balance",
 		     set_balance, &pool_strategy,
 		     "Change multipool strategy from failover to even share balance"),
-	OPT_WITHOUT_ARG("--benchmark",
-			opt_set_bool, &opt_benchmark,
-			"Run sgminer in benchmark mode - produces no shares"),
 #ifdef HAVE_CURSES
 	OPT_WITHOUT_ARG("--compact",
 			opt_set_bool, &opt_compact,
@@ -3098,24 +3093,6 @@ static void calc_diff(struct work *work, double known)
 	}
 }
 
-static void get_benchmark_work(struct work *work)
-{
-	// Use a random work block pulled from a pool
-	static uint8_t bench_block[] = { SGMINER_BENCHMARK_BLOCK };
-
-	size_t bench_size = sizeof(*work);
-	size_t work_size = sizeof(bench_block);
-	size_t min_size = (work_size < bench_size ? work_size : bench_size);
-	memset(work, 0, sizeof(*work));
-	memcpy(work, &bench_block, min_size);
-	work->mandatory = true;
-	work->pool = pools[0];
-	cgtime(&work->tv_getwork);
-	copy_time(&work->tv_getwork_reply, &work->tv_getwork);
-	work->getwork_mode = GETWORK_MODE_BENCHMARK;
-	calc_diff(work, 0);
-}
-
 #ifdef HAVE_CURSES
 static void disable_curses_windows(void)
 {
@@ -3623,9 +3600,6 @@ static bool stale_work(struct work *work, bool share)
 	time_t work_expiry;
 	struct pool *pool;
 	int getwork_delay;
-
-	if (opt_benchmark)
-		return false;
 
 	if (work->work_block != work_block) {
 		applog(LOG_DEBUG, "Work stale due to block mismatch");
@@ -7057,33 +7031,6 @@ void reinit_device(struct cgpu_info *cgpu)
 
 static struct timeval rotate_tv;
 
-/* We reap curls if they are unused for over a minute */
-static void reap_curl(struct pool *pool)
-{
-	struct curl_ent *ent, *iter;
-	struct timeval now;
-	int reaped = 0;
-
-	cgtime(&now);
-
-	mutex_lock(&pool->pool_lock);
-	list_for_each_entry_safe(ent, iter, &pool->curlring, node) {
-		if (pool->curls < 2)
-			break;
-		if (now.tv_sec - ent->tv.tv_sec > 300) {
-			reaped++;
-			pool->curls--;
-			list_del(&ent->node);
-			curl_easy_cleanup(ent->curl);
-			free(ent);
-		}
-	}
-	mutex_unlock(&pool->pool_lock);
-
-	if (reaped)
-		applog(LOG_DEBUG, "Reaped %d curl%s from %s", reaped, reaped > 1 ? "s" : "", pool->name);
-}
-
 static void *watchpool_thread(void __maybe_unused *userdata)
 {
 	int intervals = 0;
@@ -7104,9 +7051,6 @@ static void *watchpool_thread(void __maybe_unused *userdata)
 
 		for (i = 0; i < total_pools; i++) {
 			struct pool *pool = pools[i];
-
-			if (!opt_benchmark)
-				reap_curl(pool);
 
 			/* Get a rolling utility per pool over 10 mins */
 			if (intervals > 19) {
@@ -8041,21 +7985,6 @@ int main(int argc, char *argv[])
 	if (!config_loaded)
 		load_default_config();
 
-	if (opt_benchmark) {
-		struct pool *pool;
-
-		// FIXME: executes always (leftover from SHA256d days)
-		quit(1, "Cannot use benchmark mode with scrypt");
-		pool = add_pool();
-		pool->rpc_url = (char *)malloc(255);
-		strcpy(pool->rpc_url, "Benchmark");
-		pool->rpc_user = pool->rpc_url;
-		pool->rpc_pass = pool->rpc_url;
-		enable_pool(pool);
-		pool->idle = false;
-		successful_connect = true;
-	}
-
 #ifdef HAVE_CURSES
 	if (opt_realquiet || opt_display_devs)
 		use_curses = false;
@@ -8233,9 +8162,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (opt_benchmark)
-		goto begin_bench;
-
 	/* Set pool state */
 	for (i = 0; i < total_pools; i++) {
 		struct pool *pool = pools[i];
@@ -8297,7 +8223,6 @@ int main(int argc, char *argv[])
 		}
 	} while (!pools_active);
 
-begin_bench:
 	total_mhashes_done = 0;
 	for (i = 0; i < total_devices; i++) {
 		struct cgpu_info *cgpu = devices[i];
@@ -8422,13 +8347,6 @@ retry:
 			}
 			gen_stratum_work(pool, work);
 			applog(LOG_DEBUG, "Generated stratum work");
-			stage_work(work);
-			continue;
-		}
-
-		if (opt_benchmark) {
-			get_benchmark_work(work);
-			applog(LOG_DEBUG, "Generated benchmark work");
 			stage_work(work);
 			continue;
 		}

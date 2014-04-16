@@ -431,7 +431,7 @@ displayed for Accepted or Rejected work done. An example would be:
 The first 2 hex codes are the previous block hash, the rest are reported in
 seconds unless stated otherwise:
 The previous hash is followed by the getwork mode used M:X where X is one of
-P:Pool, T:Test Pool, L:LP or B:Benchmark,
+P:Pool, T:Test Pool or L:LP,
 then D:d.ddd is the difficulty required to get a share from the work,
 then G:hh:mm:ss:n.nnn, which is when the getwork or LP was sent to the pool and
 the n.nnn is how long it took to reply,

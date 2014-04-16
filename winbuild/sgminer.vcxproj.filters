@@ -106,9 +106,6 @@
     <ClInclude Include="..\arg-nonnull.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\bench_block.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\c++defs.h">
       <Filter>Header Files</Filter>
     </ClInclude>

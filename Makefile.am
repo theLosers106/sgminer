@@ -33,7 +33,7 @@ endif
 
 sgminer_SOURCES := miner.c miner.h
 sgminer_SOURCES	+= api.c
-sgminer_SOURCES	+= elist.h compat.h bench_block.h
+sgminer_SOURCES	+= elist.h compat.h
 sgminer_SOURCES	+= util.c util.h uthash.h
 sgminer_SOURCES	+= sha2.c sha2.h
 sgminer_SOURCES	+= logging.c logging.h
