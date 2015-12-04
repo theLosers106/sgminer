@@ -10,7 +10,8 @@
 #include <CL/cl.h>
 #endif
 
-#include "algorithm.h"
+#include "miner.h"
+//#include "algorithm.h"
 
 typedef struct __clState {
   cl_context context;
@@ -27,6 +28,7 @@ typedef struct __clState {
   cl_mem buffer2;
   cl_mem buffer3;
   unsigned char cldata[168];
+  bool hasBitAlign;
   bool goffset;
   cl_uint vwidth;
   size_t max_work_size;

@@ -868,8 +868,7 @@ retry: // TODO: refactor
     }
     rd_unlock(&mining_thr_lock);
     goto retry;
-  }
-  else if (!strncasecmp(&input, "d", 1)) {
+  } else if (!strncasecmp(&input, "d", 1)) {
     if (selected)
       selected = curses_int("Select GPU to disable");
     if (selected < 0 || selected >= nDevs) {
@@ -882,8 +881,7 @@ retry: // TODO: refactor
     }
     gpus[selected].deven = DEV_DISABLED;
     goto retry;
-  }
-  else if (!strncasecmp(&input, "i", 1)) {
+  } else if (!strncasecmp(&input, "i", 1)) {
     int intensity;
     char *intvar;
 
@@ -929,8 +927,7 @@ retry: // TODO: refactor
 
     pause_dynamic_threads(selected);
     goto retry;
-  }
-  else if (!strncasecmp(&input, "x", 1)) {
+  } else if (!strncasecmp(&input, "x", 1)) {
     int xintensity;
     char *intvar;
 
@@ -963,8 +960,7 @@ retry: // TODO: refactor
 
     pause_dynamic_threads(selected);
     goto retry;
-  }
-  else if (!strncasecmp(&input, "a", 1)) {
+  } else if (!strncasecmp(&input, "a", 1)) {
     int rawintensity;
     char *intvar;
 
@@ -997,8 +993,7 @@ retry: // TODO: refactor
 
     pause_dynamic_threads(selected);
     goto retry;
-  }
-  else if (!strncasecmp(&input, "r", 1)) {
+  } else if (!strncasecmp(&input, "r", 1)) {
     if (selected)
       selected = curses_int("Select GPU to attempt to restart");
     if (selected < 0 || selected >= nDevs) {
@@ -1008,8 +1003,7 @@ retry: // TODO: refactor
     wlogprint("Attempting to restart threads of GPU %d\n", selected);
     reinit_device(&gpus[selected]);
     goto retry;
-  }
-  else if (adl_active && (!strncasecmp(&input, "c", 1))) {
+  } else if (adl_active && (!strncasecmp(&input, "c", 1))) {
     if (selected)
       selected = curses_int("Select GPU to change settings on");
     if (selected < 0 || selected >= nDevs) {
@@ -1018,8 +1012,7 @@ retry: // TODO: refactor
     }
     change_gpusettings(selected);
     goto retry;
-  }
-  else
+  } else
     clear_logwin();
 
   immedok(logwin, false);
@@ -1109,8 +1102,7 @@ select_cgpu:
       applog(LOG_WARNING, "Thread %d still exists, killing it off", thr_id);
       cg_completion_timeout(&thr_info_cancel_join, thr, 5000);
       thr->cgpu->drv->thread_shutdown(thr);
-    }
-    else
+    } else
       applog(LOG_WARNING, "Thread %d no longer exists", thr_id);
   }
   rd_unlock(&mining_thr_lock);
@@ -1242,8 +1234,7 @@ static void get_opencl_statline_before(char *buf, size_t bufsiz, struct cgpu_inf
     else
       tailsprintf(buf, bufsiz, "        ");
     tailsprintf(buf, bufsiz, "| ");
-  }
-  else
+  } else
     gpu->drv->get_statline_before = &blank_get_statline_before;
 }
 #endif
@@ -1366,7 +1357,9 @@ static bool opencl_thread_init(struct thr_info *thr)
 
 static bool opencl_prepare_work(struct thr_info __maybe_unused *thr, struct work *work)
 {
-  if (work->pool->algorithm.type == ALGO_LYRA2RE || work->pool->algorithm.type == ALGO_LYRA2REv2) {
+	if (!safe_cmp(work->pool->algorithm.name, "Lyra2RE") ||
+		!safe_cmp(work->pool->algorithm.name, "lyra2rev2") ||
+		!safe_cmp(work->pool->algorithm.name, "Lyra2REv2")) {
     work->blk.work = work;
     precalc_hash_blake256(&work->blk, 0, (uint32_t *)(work->data));
   }
@@ -1407,8 +1400,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
     if (gpu_us > dynamic_us) {
       if (gpu->intensity > MIN_INTENSITY)
         --gpu->intensity;
-    }
-    else if (gpu_us < dynamic_us / 2) {
+    } else if (gpu_us < dynamic_us / 2) {
       if (gpu->intensity < MAX_INTENSITY)
         ++gpu->intensity;
     }
@@ -1472,9 +1464,6 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
     }
     applog(LOG_DEBUG, "GPU %d found something?", gpu->device_id);
     postcalc_hash_async(thr, work, thrdata->res);
-//	postcalc_hash(thr);
-//	submit_tested_work(thr, work);
-//	submit_work_async(work);
     memset(thrdata->res, 0, buffersize);
     /* This finish flushes the writebuffer set with CL_FALSE in clEnqueueWriteBuffer */
     clFinish(clState->commandQueue);
@@ -1497,12 +1486,12 @@ static void opencl_thread_shutdown(struct thr_info *thr)
     clReleaseMemObject(clState->outputBuffer);
     clReleaseMemObject(clState->CLbuffer0);
 	if (clState->buffer1)
-	clReleaseMemObject(clState->buffer1);
+		clReleaseMemObject(clState->buffer1);
 	if (clState->buffer2)
-	clReleaseMemObject(clState->buffer2);
+		clReleaseMemObject(clState->buffer2);
 	if (clState->buffer3)
-	clReleaseMemObject(clState->buffer3);
-    if (clState->padbuffer8)
+		clReleaseMemObject(clState->buffer3);
+	if (clState->padbuffer8)
       clReleaseMemObject(clState->padbuffer8);
     clReleaseKernel(clState->kernel);
     for (i = 0; i < clState->n_extra_kernels; i++)

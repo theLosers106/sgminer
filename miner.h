@@ -3,17 +3,6 @@
 
 #include "config.h"
 
-#if defined(USE_GIT_VERSION) && defined(GIT_VERSION)
-#undef VERSION
-#define VERSION GIT_VERSION
-#endif
-
-#ifdef BUILD_NUMBER
-#define CGMINER_VERSION VERSION "-" BUILD_NUMBER
-#else
-#define CGMINER_VERSION VERSION
-#endif
-
 #include "algorithm.h"
 
 #include <stdbool.h>
@@ -776,7 +765,6 @@ endian_flip168(void __maybe_unused *dest_p, const void __maybe_unused *src_p)
 }
 #endif
 
-
 extern double cgpu_runtime(struct cgpu_info *cgpu);
 extern void _quit(int status);
 
@@ -1045,6 +1033,7 @@ extern bool opt_protocol;
 extern bool have_longpoll;
 extern char *opt_kernel_path;
 extern char *opt_socks_proxy;
+extern bool opt_lyra;
 
 #if defined(unix) || defined(__APPLE__)
     extern char *opt_stderr_cmd;
@@ -1165,8 +1154,8 @@ extern struct pool *add_pool(void);
 extern bool add_pool_details(struct pool *pool, bool live, char *url, char *user, char *pass, char *name, char *desc, char *profile, char *algo);
 
 #define MAX_GPUDEVICES 16
-#define MAX_DEVICES 4096
-
+//#define MAX_DEVICES 4096
+#define MAX_DEVICES 8192
 #define MIN_INTENSITY 4
 #define MIN_INTENSITY_STR "4"
 #define MAX_INTENSITY 31
@@ -1423,7 +1412,6 @@ struct pool {
   unsigned char *coinbase;
   size_t nonce2_offset;
   unsigned char header_bin[128];
-  double next_diff;
   int merkle_offset;
 
   struct timeval tv_lastwork;

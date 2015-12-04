@@ -1,10 +1,10 @@
 /**
- * Header file for Blake2b's internal permutation in the form of a sponge. 
- * This code is based on the original Blake2b's implementation provided by 
+ * Header file for Blake2b's internal permutation in the form of a sponge.
+ * This code is based on the original Blake2b's implementation provided by
  * Samuel Neves (https://blake2.net/)
- * 
+ *
  * Author: The Lyra PHC team (http://www.lyra-kdf.net/) -- 2014.
- * 
+ *
  * This software is hereby placed in the public domain.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ''AS IS'' AND ANY EXPRESS
@@ -74,23 +74,23 @@ static inline uint64_t rotr64( const uint64_t w, const unsigned c ){
 
 
 //---- Housekeeping
-void initState(uint64_t state[/*16*/]);
+extern void initStatev2(uint64_t state[/*16*/]);
 
 //---- Squeezes
-void squeeze(uint64_t *state, unsigned char *out, unsigned int len);
-void reducedSqueezeRow0(uint64_t* state, uint64_t* row);
+extern void squeezev2(uint64_t *state, unsigned char *out, unsigned int len);
+extern void reducedSqueezeRow0v2(uint64_t* state, uint64_t* row, uint64_t nCols);
 
 //---- Absorbs
-void absorbBlock(uint64_t *state, const uint64_t *in);
-void absorbBlockBlake2Safe(uint64_t *state, const uint64_t *in);
+extern void absorbBlockv2(uint64_t *state, const uint64_t *in);
+extern void absorbBlockBlake2Safev2(uint64_t *state, const uint64_t *in);
 
 //---- Duplexes
-void reducedDuplexRow1(uint64_t *state, uint64_t *rowIn, uint64_t *rowOut);
-void reducedDuplexRowSetup(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut);
-void reducedDuplexRow(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut);
+extern void reducedDuplexRow1v2(uint64_t *state, uint64_t *rowIn, uint64_t *rowOut, uint64_t nCols);
+extern void reducedDuplexRowSetupv2(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut, uint64_t nCols);
+extern void reducedDuplexRowv2(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut, uint64_t nCols);
 
 //---- Misc
-void printArray(unsigned char *array, unsigned int size, char *name);
+void printArrayv2(unsigned char *array, unsigned int size, char *name);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
