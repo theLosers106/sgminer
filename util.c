@@ -1560,9 +1560,6 @@ static bool parse_notify(struct pool *pool, json_t *val)
   pool->swork.nbit = nbit;
   pool->swork.ntime = ntime;
   pool->swork.clean = clean;
-  if (pool->next_diff > 0) {
-    pool->swork.diff = pool->next_diff;
-  }
   alloc_len = pool->swork.cb_len = cb1_len + pool->n1_len + pool->n2size + cb2_len;
   pool->nonce2_offset = cb1_len + pool->n1_len;
 
@@ -1671,13 +1668,8 @@ static bool parse_diff(struct pool *pool, json_t *val)
     return false;
 
   cg_wlock(&pool->data_lock);
-  if (pool->next_diff > 0) {
-    old_diff = pool->next_diff;
-    pool->next_diff = diff;
-  } else {
-    old_diff = pool->swork.diff;
-    pool->next_diff = pool->swork.diff = diff;
-  }
+  old_diff = pool->swork.diff;
+  pool->swork.diff = diff;
   cg_wunlock(&pool->data_lock);
 
   if (old_diff != diff) {
@@ -1791,7 +1783,7 @@ static bool send_version(struct pool *pool, json_t *val)
   if (!id)
     return false;
 
-  sprintf(s, "{\"id\": %d, \"result\": \""PACKAGE"/"CGMINER_VERSION"\", \"error\": null}", id);
+  sprintf(s, "{\"id\": %d, \"result\": \""PACKAGE"/"VERSION"\", \"error\": null}", id);
   if (!stratum_send(pool, s, strlen(s)))
     return false;
 
@@ -2480,9 +2472,9 @@ resend:
     sprintf(s, "{\"id\": %d, \"method\": \"mining.subscribe\", \"params\": []}", swork_id++);
   } else {
     if (pool->sessionid)
-      sprintf(s, "{\"id\": %d, \"method\": \"mining.subscribe\", \"params\": [\""PACKAGE"/"CGMINER_VERSION"\", \"%s\"]}", swork_id++, pool->sessionid);
+      sprintf(s, "{\"id\": %d, \"method\": \"mining.subscribe\", \"params\": [\""PACKAGE"/"VERSION"\", \"%s\"]}", swork_id++, pool->sessionid);
     else
-      sprintf(s, "{\"id\": %d, \"method\": \"mining.subscribe\", \"params\": [\""PACKAGE"/"CGMINER_VERSION"\"]}", swork_id++);
+      sprintf(s, "{\"id\": %d, \"method\": \"mining.subscribe\", \"params\": [\""PACKAGE"/"VERSION"\"]}", swork_id++);
   }
 
   if (__stratum_send(pool, s, strlen(s)) != SEND_OK) {
@@ -2568,7 +2560,6 @@ out:
     if (!pool->stratum_url)
       pool->stratum_url = pool->sockaddr_url;
     pool->stratum_active = true;
-    pool->next_diff = 0;
     pool->swork.diff = 1;
     if (opt_protocol) {
       applog(LOG_DEBUG, "%s confirmed mining.subscribe with extranonce1 %s extran2size %d",

@@ -1,8 +1,8 @@
 /**
  * Header file for the Lyra2 Password Hashing Scheme (PHS).
- * 
+ *
  * Author: The Lyra PHC team (http://www.lyra-kdf.net/) -- 2014.
- * 
+ *
  * This software is hereby placed in the public domain.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ''AS IS'' AND ANY EXPRESS
@@ -17,8 +17,8 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef LYRA2_H_
-#define LYRA2_H_
+#ifndef LYRA2V2_H_
+#define LYRA2V2_H_
 
 #include <stdint.h>
 
@@ -37,14 +37,6 @@ typedef unsigned char byte;
         #define BLOCK_LEN_BYTES (BLOCK_LEN_INT64 * 8)    //Block length, in bytes
 #endif
 
-#ifndef N_COLS
-        #define N_COLS 8                                //Number of columns in the memory matrix: fixed to 64 by default
-#endif
-
-#define ROW_LEN_INT64 (BLOCK_LEN_INT64 * N_COLS) //Total length of a row: N_COLS blocks
-#define ROW_LEN_BYTES (ROW_LEN_INT64 * 8)        //Number of bytes per row
-
-
-int LYRA2(void *K, uint64_t kLen, const void *pwd, uint64_t pwdlen, const void *salt, uint64_t saltlen, uint64_t timeCost, uint64_t nRows, uint64_t nCols);
+int LYRA2V2(void *K, uint64_t kLen, const void *pwd, uint64_t pwdlen, const void *salt, uint64_t saltlen, uint64_t timeCost, uint64_t nRows, uint64_t nCols);
 
 #endif /* LYRA2_H_ */

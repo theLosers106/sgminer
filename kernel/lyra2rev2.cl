@@ -31,8 +31,8 @@
 // typedef unsigned int uint;
 #pragma OPENCL EXTENSION cl_amd_printf : enable
 
-#ifndef LYRA2RE_CL
-#define LYRA2RE_CL
+#ifndef LYRA2REV2_CL
+#define LYRA2REV2_CL
 
 #if __ENDIAN_LITTLE__
 #define SPH_LITTLE_ENDIAN 1
@@ -90,7 +90,7 @@ static inline sph_u64 ror64(sph_u64 vw, unsigned a) {
 //#define SPH_ROTR64(l,n) ror64(l,n)
 #define memshift 3
 #include "blake256.cl"
-#include "lyra2v2.cl"
+#include "Lyra2v2.cl"
 #include "keccak1600.cl"
 #include "skein256.cl"
 #include "cubehash.cl"
@@ -522,4 +522,4 @@ __kernel void search6(__global uchar* hashes, __global uint* output, const ulong
 }
 
 
-#endif // LYRA2RE_CL
+#endif // LYRA2REV2_CL
