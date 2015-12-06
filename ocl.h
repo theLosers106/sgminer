@@ -10,7 +10,8 @@
 #include <CL/cl.h>
 #endif
 
-#include "algorithm.h"
+//#include "algorithm.h"
+#include "miner.h"
 
 typedef struct __clState {
   cl_context context;

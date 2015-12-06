@@ -36,8 +36,8 @@
 #include "ocl/binary_kernel.h"
 #include "algorithm/neoscrypt.h"
 #include "algorithm/pluck.h"
-#include "algorithm/yescrypt.h"
-#include "algorithm/lyra2re.h"
+//#include "algorithm/yescrypt.h"
+#include "algorithm/lyra2rev2.h"
 
 /* FIXME: only here for global config vars, replace with configuration.h
  * or similar as soon as config is in a struct instead of littered all
@@ -500,6 +500,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
     applog(LOG_DEBUG, "GPU %d: computing max. global thread count to %u", gpu, (unsigned)(cgpu->thread_concurrency));
   }
 
+#if 0
   // Yescrypt TC
   else if ((cgpu->algorithm.type == ALGO_YESCRYPT ||
             algorithm->type == ALGO_YESCRYPT_MULTI) && !cgpu->opt_tc) {
@@ -584,9 +585,10 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
 
     applog(LOG_DEBUG, "GPU %d: computing max. global thread count to %u", gpu, (unsigned)(cgpu->thread_concurrency));
   }
+#endif
 
-  // Lyra2re v2 TC
-  else if (cgpu->algorithm.type == ALGO_LYRA2REv2 && !cgpu->opt_tc) {
+  // Lyra2REv2 TC
+  else if (cgpu->algorithm.type == ALGO_LYRA2REV2 /*&& !cgpu->opt_tc*/) {
     size_t glob_thread_count;
     long max_int;
     unsigned char type = 0;
@@ -784,6 +786,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       applog(LOG_DEBUG, "pluck buffer sizes: %lu RW, %lu R", (unsigned long)bufsize, (unsigned long)readbufsize);
       // scrypt/n-scrypt
     }
+#if 0
     else if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_MULTI) {
       /* The scratch/pad-buffer needs 32kBytes memory per thread. */
       bufsize = YESCRYPT_SCRATCHBUF_SIZE * cgpu->thread_concurrency;
@@ -797,7 +800,8 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       applog(LOG_DEBUG, "yescrypt buffer sizes: %lu RW, %lu R", (unsigned long)bufsize, (unsigned long)readbufsize);
       // scrypt/n-scrypt
     }
-    else if (algorithm->type == ALGO_LYRA2REv2) {
+#endif
+    else if (algorithm->type == ALGO_LYRA2REV2) {
       /* The scratch/pad-buffer needs 32kBytes memory per thread. */
       bufsize = LYRA_SCRATCHBUF_SIZE * cgpu->thread_concurrency;
       buf1size = 4* 8 * cgpu->thread_concurrency; //matrix
@@ -835,6 +839,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       applog(LOG_WARNING, "Your settings come to %lu", (unsigned long)bufsize);
     }
 
+#if 0
     if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_MULTI) {
       // need additionnal buffers
       clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
@@ -855,7 +860,9 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
         return NULL;
       }
     }
-    else if (algorithm->type == ALGO_LYRA2REv2) {
+    else
+#endif
+    if (algorithm->type == ALGO_LYRA2REV2) {
       // need additionnal buffers
       clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer1) {

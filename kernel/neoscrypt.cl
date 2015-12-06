@@ -1,5 +1,4 @@
-/* NeoScrypt(128, 2, 1) with Salsa20/20 and ChaCha20/20 */
-/* Adapted and improved for 14.x drivers by Wolf9466 (Wolf`) */
+// NeoScrypt(128, 2, 1) with Salsa20/20 and ChaCha20/20
 
 // Stupid AMD compiler ignores the unroll pragma in these two
 #define SALSA_SMALL_UNROLL 3
@@ -351,74 +350,71 @@ uint16 salsa_small_scalar_rnd(uint16 X)
 	return(X + st);
 }
 
-#define CHACHA_CORE_PARALLEL(state)	do { \
-	state[0] += state[1]; state[3] = rotate(state[3] ^ state[0], (uint4)(16U, 16U, 16U, 16U)); \
-	state[2] += state[3]; state[1] = rotate(state[1] ^ state[2], (uint4)(12U, 12U, 12U, 12U)); \
-	state[0] += state[1]; state[3] = rotate(state[3] ^ state[0], (uint4)(8U, 8U, 8U, 8U)); \
-	state[2] += state[3]; state[1] = rotate(state[1] ^ state[2], (uint4)(7U, 7U, 7U, 7U)); \
-	\
-	state[0] += state[1].yzwx; state[3].wxyz = rotate(state[3].wxyz ^ state[0], (uint4)(16U, 16U, 16U, 16U)); \
-	state[2].zwxy += state[3].wxyz; state[1].yzwx = rotate(state[1].yzwx ^ state[2].zwxy, (uint4)(12U, 12U, 12U, 12U)); \
-	state[0] += state[1].yzwx; state[3].wxyz = rotate(state[3].wxyz ^ state[0], (uint4)(8U, 8U, 8U, 8U)); \
-	state[2].zwxy += state[3].wxyz; state[1].yzwx = rotate(state[1].yzwx ^ state[2].zwxy, (uint4)(7U, 7U, 7U, 7U)); \
+#define CHACHA_CORE(state)	do { \
+	state.s0 += state.s4; state.sc = as_uint(as_ushort2(state.sc ^ state.s0).s10); state.s8 += state.sc; state.s4 = rotate(state.s4 ^ state.s8, 12U); state.s0 += state.s4; state.sc = rotate(state.sc ^ state.s0, 8U); state.s8 += state.sc; state.s4 = rotate(state.s4 ^ state.s8, 7U); \
+	state.s1 += state.s5; state.sd = as_uint(as_ushort2(state.sd ^ state.s1).s10); state.s9 += state.sd; state.s5 = rotate(state.s5 ^ state.s9, 12U); state.s1 += state.s5; state.sd = rotate(state.sd ^ state.s1, 8U); state.s9 += state.sd; state.s5 = rotate(state.s5 ^ state.s9, 7U); \
+	state.s2 += state.s6; state.se = as_uint(as_ushort2(state.se ^ state.s2).s10); state.sa += state.se; state.s6 = rotate(state.s6 ^ state.sa, 12U); state.s2 += state.s6; state.se = rotate(state.se ^ state.s2, 8U); state.sa += state.se; state.s6 = rotate(state.s6 ^ state.sa, 7U); \
+	state.s3 += state.s7; state.sf = as_uint(as_ushort2(state.sf ^ state.s3).s10); state.sb += state.sf; state.s7 = rotate(state.s7 ^ state.sb, 12U); state.s3 += state.s7; state.sf = rotate(state.sf ^ state.s3, 8U); state.sb += state.sf; state.s7 = rotate(state.s7 ^ state.sb, 7U); \
+	state.s0 += state.s5; state.sf = as_uint(as_ushort2(state.sf ^ state.s0).s10); state.sa += state.sf; state.s5 = rotate(state.s5 ^ state.sa, 12U); state.s0 += state.s5; state.sf = rotate(state.sf ^ state.s0, 8U); state.sa += state.sf; state.s5 = rotate(state.s5 ^ state.sa, 7U); \
+	state.s1 += state.s6; state.sc = as_uint(as_ushort2(state.sc ^ state.s1).s10); state.sb += state.sc; state.s6 = rotate(state.s6 ^ state.sb, 12U); state.s1 += state.s6; state.sc = rotate(state.sc ^ state.s1, 8U); state.sb += state.sc; state.s6 = rotate(state.s6 ^ state.sb, 7U); \
+	state.s2 += state.s7; state.sd = as_uint(as_ushort2(state.sd ^ state.s2).s10); state.s8 += state.sd; state.s7 = rotate(state.s7 ^ state.s8, 12U); state.s2 += state.s7; state.sd = rotate(state.sd ^ state.s2, 8U); state.s8 += state.sd; state.s7 = rotate(state.s7 ^ state.s8, 7U); \
+	state.s3 += state.s4; state.se = as_uint(as_ushort2(state.se ^ state.s3).s10); state.s9 += state.se; state.s4 = rotate(state.s4 ^ state.s9, 12U); state.s3 += state.s4; state.se = rotate(state.se ^ state.s3, 8U); state.s9 += state.se; state.s4 = rotate(state.s4 ^ state.s9, 7U); \
 } while(0)
 
-uint16 chacha_small_parallel_rnd(uint16 X)
-{
-	uint4 t, st[4];
-
-	((uint16 *)st)[0] = X;
-
+uint16 chacha_small_scalar_rnd(uint16 X)
+{   
+	uint16 st = X;
+	
 	#if CHACHA_SMALL_UNROLL == 1
 
 	for(int i = 0; i < 10; ++i)
 	{
-		CHACHA_CORE_PARALLEL(st);
+		CHACHA_CORE(st);
 	}
 
 	#elif CHACHA_SMALL_UNROLL == 2
 
 	for(int i = 0; i < 5; ++i)
 	{
-		CHACHA_CORE_PARALLEL(st);
-		CHACHA_CORE_PARALLEL(st);
+		CHACHA_CORE(st);
+		CHACHA_CORE(st);
 	}
 
 	#elif CHACHA_SMALL_UNROLL == 3
 
 	for(int i = 0; i < 4; ++i)
 	{
-		CHACHA_CORE_PARALLEL(st);
+		CHACHA_CORE(st);
 		if(i == 3) break;
-		CHACHA_CORE_PARALLEL(st);
-		CHACHA_CORE_PARALLEL(st);
+		CHACHA_CORE(st);
+		CHACHA_CORE(st);
 	}
 
 	#elif CHACHA_SMALL_UNROLL == 4
 
 	for(int i = 0; i < 3; ++i)
 	{
-		CHACHA_CORE_PARALLEL(st);
-		CHACHA_CORE_PARALLEL(st);
+		CHACHA_CORE(st);
+		CHACHA_CORE(st);
 		if(i == 2) break;
-		CHACHA_CORE_PARALLEL(st);
-		CHACHA_CORE_PARALLEL(st);
+		CHACHA_CORE(st);
+		CHACHA_CORE(st);
 	}
 
 	#else
 
 	for(int i = 0; i < 2; ++i)
 	{
-		CHACHA_CORE_PARALLEL(st);
-		CHACHA_CORE_PARALLEL(st);
-		CHACHA_CORE_PARALLEL(st);
-		CHACHA_CORE_PARALLEL(st);
-		CHACHA_CORE_PARALLEL(st);
+		CHACHA_CORE(st);
+		CHACHA_CORE(st);
+		CHACHA_CORE(st);
+		CHACHA_CORE(st);
+		CHACHA_CORE(st);
 	}
 
 	#endif
 
-	return(X + ((uint16 *)st)[0]);
+	return(X + st);
 }
 
 void neoscrypt_blkmix(uint16 *XV, bool alg)
@@ -443,10 +439,10 @@ void neoscrypt_blkmix(uint16 *XV, bool alg)
 	}
 	else
 	{
-		XV[0] = chacha_small_parallel_rnd(XV[0]); XV[1] ^= XV[0];
-		XV[1] = chacha_small_parallel_rnd(XV[1]); XV[2] ^= XV[1];
-		XV[2] = chacha_small_parallel_rnd(XV[2]); XV[3] ^= XV[2];
-		XV[3] = chacha_small_parallel_rnd(XV[3]);
+		XV[0] = chacha_small_scalar_rnd(XV[0]); XV[1] ^= XV[0];
+		XV[1] = chacha_small_scalar_rnd(XV[1]); XV[2] ^= XV[1];
+		XV[2] = chacha_small_scalar_rnd(XV[2]); XV[3] ^= XV[2];
+		XV[3] = chacha_small_scalar_rnd(XV[3]);
 	}
 
 	XV[1] ^= XV[2];
@@ -454,7 +450,7 @@ void neoscrypt_blkmix(uint16 *XV, bool alg)
 	XV[1] ^= XV[2];
 }
 
-void ScratchpadStore(__global void *V, void *X, uchar idx)
+void ScratchpadStore(__global void *V, const void *X, uchar idx)
 {
 	((__global ulong16 *)V)[idx << 1] = ((ulong16 *)X)[0];
 	((__global ulong16 *)V)[(idx << 1) + 1] = ((ulong16 *)X)[1];
@@ -466,20 +462,34 @@ void ScratchpadMix(void *X, const __global void *V, uchar idx)
 	((ulong16 *)X)[1] ^= ((__global ulong16 *)V)[(idx << 1) + 1];
 }
 
-void SMix(uint16 *X, __global uint16 *V, bool flag)
+void ScratchpadLoad(void *X, const __global void *V, uchar idx)
 {
+	((ulong16 *)X)[0] = ((__global ulong16 *)V)[idx << 1];
+	((ulong16 *)X)[1] = ((__global ulong16 *)V)[(idx << 1) + 1];
+}
+
+void SMix(uint16 *X, __global uint16 *V, bool flag)
+{	
 	#pragma unroll 1
-	for(int i = 0; i < 128; ++i)
+	for(int i = 0; i < 64; ++i)
 	{
 		ScratchpadStore(V, X, i);
+		neoscrypt_blkmix(X, flag);
 		neoscrypt_blkmix(X, flag);
 	}
 
 	#pragma unroll 1
 	for(int i = 0; i < 128; ++i)
 	{
+		uint16 tmp[4];
 		const uint idx = convert_uchar(((uint *)X)[48] & 0x7F);
-		ScratchpadMix(X, V, idx);
+
+		ScratchpadLoad(tmp, V, idx >> 1);
+
+		if(idx & 1) neoscrypt_blkmix(tmp, flag);
+
+		((ulong16 *)X)[0] ^= ((ulong16 *)tmp)[0];
+		((ulong16 *)X)[1] ^= ((ulong16 *)tmp)[1];
 		neoscrypt_blkmix(X, flag);
 	}
 }
@@ -492,7 +502,8 @@ __kernel void search(__global const uchar* restrict input, __global uint* restri
 	// X = CONSTANT_r * 2 * BLOCK_SIZE(64); Z is a copy of X for ChaCha
 	uint16 X[4], Z[4];
 	/* V = CONSTANT_N * CONSTANT_r * 2 * BLOCK_SIZE */
-	__global ulong16 *V = (__global ulong16 *)(padcache + (0x8000 * (get_global_id(0) % MAX_GLOBAL_THREADS)));
+	//__global ulong16 *V = (__global ulong16 *)(padcache + (0x8000 * (get_global_id(0) % MAX_GLOBAL_THREADS)));
+	__global ulong16 *V = (__global ulong16 *)(padcache + (0x4000 * (get_global_id(0) % MAX_GLOBAL_THREADS)));
 	uchar outbuf[32];
 	uchar data[PASSWORD_LEN];
 

@@ -33,9 +33,9 @@
 #include "algorithm/neoscrypt.h"
 #include "algorithm/whirlpoolx.h"
 #include "algorithm/lyra2re.h"
-#include "algorithm/lyra2re_old.h"
+#include "algorithm/lyra2rev2.h"
 #include "algorithm/pluck.h"
-#include "algorithm/yescrypt.h"
+//#include "algorithm/yescrypt.h"
 #include "algorithm/credits.h"
 
 #include "compat.h"
@@ -43,6 +43,7 @@
 #include <inttypes.h>
 #include <string.h>
 
+bool opt_lyra;
 const char *algorithm_type_str[] = {
   "Unknown",
   "Credits",
@@ -62,7 +63,7 @@ const char *algorithm_type_str[] = {
   "Neoscrypt",
   "WhirlpoolX",
   "Lyra2RE",
-  "Lyra2REv2"
+  "Lyra2REV2"
   "Pluck"
   "Yescrypt",
   "Yescrypt-multi"
@@ -216,6 +217,7 @@ static cl_int queue_credits_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_
   return status;
 }
 
+#if 0
 static cl_int queue_yescrypt_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unused cl_uint threads)
 {
   cl_kernel *kernel = &clState->kernel;
@@ -309,6 +311,7 @@ static cl_int queue_yescrypt_multikernel(_clState *clState, dev_blk_ctx *blk, __
 
   return status;
 }
+#endif
 
 static cl_int queue_maxcoin_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
 {
@@ -764,39 +767,42 @@ static cl_int queue_whirlcoin_kernel(struct __clState *clState, struct _dev_blk_
 
 static cl_int queue_whirlpoolx_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
 {
-  uint64_t midblock[8], key[8] = { 0 }, tmp[8] = { 0 };
+  cl_kernel *kernel = &clState->kernel;
+  unsigned int num = 0;
   cl_ulong le_target;
   cl_int status;
 
   le_target = *(cl_ulong *)(blk->work->device_target + 24);
   flip80(clState->cldata, blk->work->data);
+  status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, 80, clState->cldata, 0, NULL,NULL);
 
-  memcpy(midblock, clState->cldata, 64);
-
-  // midblock = n, key = h
-  for (int i = 0; i < 10; ++i) {
-    tmp[0] = WHIRLPOOL_ROUND_CONSTANTS[i];
-    whirlpool_round(key, tmp);
-    tmp[0] = 0;
-    whirlpool_round(midblock, tmp);
-
-    for (int x = 0; x < 8; ++x) {
-      midblock[x] ^= key[x];
-    }
-  }
-
-  for (int i = 0; i < 8; ++i) {
-    midblock[i] ^= ((uint64_t *)(clState->cldata))[i];
-  }
-
-  status = clSetKernelArg(clState->kernel, 0, sizeof(cl_ulong8), (cl_ulong8 *)&midblock);
-  status |= clSetKernelArg(clState->kernel, 1, sizeof(cl_ulong), (void *)(((uint64_t *)clState->cldata) + 8));
-  status |= clSetKernelArg(clState->kernel, 2, sizeof(cl_ulong), (void *)(((uint64_t *)clState->cldata) + 9));
-  status |= clSetKernelArg(clState->kernel, 3, sizeof(cl_mem), (void *)&clState->outputBuffer);
-  status |= clSetKernelArg(clState->kernel, 4, sizeof(cl_ulong), (void *)&le_target);
+  CL_SET_ARG(clState->CLbuffer0);
+  CL_SET_ARG(clState->outputBuffer);
+  CL_SET_ARG(le_target);
 
   return status;
 }
+
+typedef struct _algorithm_settings_t {
+  const char *name; /* Human-readable identifier */
+  algorithm_type_t type; //common algorithm type
+  const char *kernelfile; /* alternate kernel file */
+  double   diff_multiplier1;
+  double   diff_multiplier2;
+  double   share_diff_multiplier;
+  uint32_t xintensity_shift;
+  uint32_t intensity_shift;
+  uint32_t found_idx;
+  unsigned long long   diff_numerator;
+  uint32_t diff1targ;
+  size_t n_extra_kernels;
+  long rw_buffer_size;
+  cl_command_queue_properties cq_properties;
+  void     (*regenhash)(struct work *);
+  cl_int   (*queue_kernel)(struct __clState *, struct _dev_blk_ctx *, cl_uint);
+  void     (*gen_hash)(const unsigned char *, unsigned int, unsigned char *);
+  void     (*set_compile_options)(build_kernel_data *, struct cgpu_info *, algorithm_t *);
+} algorithm_settings_t;
 
 static cl_int queue_lyra2RE_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
 {
@@ -842,7 +848,7 @@ static cl_int queue_lyra2RE_kernel(struct __clState *clState, struct _dev_blk_ct
   return status;
 }
 
-static cl_int queue_lyra2REv2_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
+static cl_int queue_lyra2rev2_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
 {
   cl_kernel *kernel;
   unsigned int num;
@@ -945,6 +951,7 @@ static algorithm_settings_t algos[] = {
 
 
 
+#if 0
 #define A_YESCRYPT(a) \
   { a, ALGO_YESCRYPT, "", 1, 65536, 65536, 0, 0, 0xFF, 0xFFFF000000000000ULL, 0x0000ffffUL, 0, -1, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, yescrypt_regenhash, queue_yescrypt_kernel, gen_hash, append_neoscrypt_compiler_options}
   A_YESCRYPT("yescrypt"),
@@ -955,6 +962,7 @@ static algorithm_settings_t algos[] = {
   A_YESCRYPT_MULTI("yescrypt-multi"),
 #undef A_YESCRYPT_MULTI
 
+#endif
 
   // kernels starting from this will have difficulty calculated by using quarkcoin algorithm
 #define A_QUARK(a, b) \
@@ -992,10 +1000,8 @@ static algorithm_settings_t algos[] = {
 
   { "fresh", ALGO_FRESH, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, 4 * 16 * 4194304, 0, fresh_regenhash, queue_fresh_kernel, gen_hash, NULL },
 
-  { "lyra2re", ALGO_LYRA2RE, "", 1, 128, 128, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, 2 * 8 * 4194304, 0, lyra2reold_regenhash, queue_lyra2RE_kernel, gen_hash, NULL },
-
-  { "lyra2rev2", ALGO_LYRA2REv2, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 6, -1, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, lyra2re_regenhash, queue_lyra2REv2_kernel, gen_hash, append_neoscrypt_compiler_options },
-
+  { "lyra2re", ALGO_LYRA2RE, "", 1, 128, 128, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, 2 * 8 * 4194304, 0, lyra2re_regenhash, queue_lyra2RE_kernel, gen_hash, NULL },
+  { "lyra2rev2", ALGO_LYRA2REV2, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 6, -1, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, lyra2rev2_regenhash, queue_lyra2rev2_kernel, gen_hash, append_neoscrypt_compiler_options },
 
   // kernels starting from this will have difficulty calculated by using fuguecoin algorithm
 #define A_FUGUE(a, b, c) \
@@ -1006,7 +1012,7 @@ static algorithm_settings_t algos[] = {
 #undef A_FUGUE
 
   { "whirlcoin", ALGO_WHIRL, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 3, 8 * 16 * 4194304, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, whirlcoin_regenhash, queue_whirlcoin_kernel, sha256, NULL },
-  { "whirlpoolx", ALGO_WHIRLPOOLX, "", 1, 1, 1, 0, 0, 0xFFU, 0xFFFFULL, 0x0000FFFFUL, 0, 0, 0, whirlpoolx_regenhash, queue_whirlpoolx_kernel, gen_hash, NULL },
+  { "whirlpoolx", ALGO_WHIRLPOOLX, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000FFFFUL, 0, 0, 0, whirlpoolx_regenhash, queue_whirlpoolx_kernel, gen_hash, NULL },
 
   // Terminator (do not remove)
   { NULL, ALGO_UNK, "", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL }
@@ -1079,7 +1085,10 @@ static const char *lookup_algorithm_alias(const char *lookup_alias, uint8_t *nfa
   ALGO_ALIAS("nist5", "talkcoin-mod");
   ALGO_ALIAS("keccak", "maxcoin");
   ALGO_ALIAS("whirlpool", "whirlcoin");
+  ALGO_ALIAS("Lyra2RE", "lyra2re");
   ALGO_ALIAS("lyra2", "lyra2re");
+  ALGO_ALIAS("Lyra2REv2", "lyra2rev2");
+  ALGO_ALIAS("lyra2rev2", "lyra2rev2");
   ALGO_ALIAS("lyra2v2", "lyra2rev2");
 
 #undef ALGO_ALIAS
@@ -1107,6 +1116,7 @@ void set_algorithm(algorithm_t* algo, const char* newname_alias)
   if ((old_nfactor > 0) && (old_nfactor != nfactor))
     nfactor = old_nfactor;
 
+  if (algo->type == ALGO_LYRA2RE || algo->type == ALGO_LYRA2REV2) { opt_lyra = true; }
   set_algorithm_nfactor(algo, nfactor);
 
   //reapply kernelfile if was set

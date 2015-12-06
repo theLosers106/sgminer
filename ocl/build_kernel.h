@@ -1,6 +1,7 @@
 #ifndef BUILD_KERNEL_H
 #define BUILD_KERNEL_H
 
+#include "ocl.h"
 #include <stdbool.h>
 #include "logging.h"
 

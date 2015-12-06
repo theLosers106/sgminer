@@ -68,6 +68,10 @@ char *curly = ":D";
   #include <sys/wait.h>
 #endif
 
+#if defined(USE_GIT_VERSION) && defined(GIT_VERSION)
+#undef VERSION
+#define VERSION GIT_VERSION
+#endif
 
 static char packagename[256];
 
@@ -2148,7 +2152,7 @@ static void gen_gbt_work(struct pool *pool, struct work *work)
   }
 
   // Neoscrypt doesn't calc_midstate()
-  if (pool->algorithm.type == ALGO_NEOSCRYPT) {
+  if (pool->algorithm.type != ALGO_NEOSCRYPT) {
     calc_midstate(work);
   }
   local_work++;
@@ -2567,7 +2571,7 @@ static void curses_print_status(void)
   unsigned short int line = 0;
 
   wattron(statuswin, A_BOLD);
-  cg_mvwprintw(statuswin, line, 0, PACKAGE " " CGMINER_VERSION " - Started: %s", datestamp);
+  cg_mvwprintw(statuswin, line, 0, PACKAGE " " VERSION " - Started: %s", datestamp);
   curses_print_uptime(&launch_time);
   wattroff(statuswin, A_BOLD);
 
@@ -5574,7 +5578,7 @@ static void *stratum_sthread(void *userdata)
     applog(LOG_DEBUG, "stratum_sthread() algorithm = %s", pool->algorithm.name);
 
     // Neoscrypt is little endian
-    if (!pool->algorithm.type == ALGO_NEOSCRYPT) {
+    if (pool->algorithm.type == ALGO_NEOSCRYPT) {
       nonce = htobe32(*((uint32_t *)(work->data + 76)));
       //*((uint32_t *)nonce2) = htole32(work->nonce2);
     }
@@ -6078,7 +6082,7 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
   applog(LOG_DEBUG, "[THR%d] gen_stratum_work() - algorithm = %s", work->thr_id, pool->algorithm.name);
 
   // Different for Neoscrypt because of Little Endian
-  if (!pool->algorithm.type == ALGO_NEOSCRYPT) {
+  if (pool->algorithm.type == ALGO_NEOSCRYPT) {
     /* Incoming data is in little endian. */
     memcpy(merkle_root, merkle_sha, 32);
 
@@ -6140,7 +6144,7 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
   }
 
   // For Neoscrypt use set_target_neoscrypt() function
-  if (!pool->algorithm.type == ALGO_NEOSCRYPT) {
+  if (pool->algorithm.type == ALGO_NEOSCRYPT) {
     set_target_neoscrypt(work->target, work->sdiff, work->thr_id);
   } else {
     calc_midstate(work);
@@ -6238,7 +6242,7 @@ static void apply_initial_gpu_settings(struct pool *pool)
 
   //thread-concurrency
   // neoscrypt - if not specified set TC to 0 so that TC will be calculated by intensity settings
-  if (!pool->algorithm.type == ALGO_NEOSCRYPT) {
+  if (pool->algorithm.type == ALGO_NEOSCRYPT) {
     opt = ((empty_string(pool->thread_concurrency))?"0":get_pool_setting(pool->thread_concurrency, default_profile.thread_concurrency));
   }
   // otherwise use pool/profile setting or default to default profile setting
@@ -6562,7 +6566,7 @@ static void apply_switcher_options(unsigned long options, struct pool *pool)
   if(opt_isset(options, SWITCHER_APPLY_TC))
   {
     // neoscrypt - if not specified set TC to 0 so that TC will be calculated by intensity settings
-    if (!pool->algorithm.type == ALGO_NEOSCRYPT) {
+    if (pool->algorithm.type == ALGO_NEOSCRYPT) {
       opt = ((empty_string(pool->thread_concurrency))?"0":get_pool_setting(pool->thread_concurrency, default_profile.thread_concurrency));
     }
     // otherwise use pool/profile setting or default to default profile setting
@@ -8700,7 +8704,7 @@ int main(int argc, char *argv[])
   /* We use the getq mutex as the staged lock */
   stgd_lock = &getq->mutex;
 
-  snprintf(packagename, sizeof(packagename), "%s %s", PACKAGE, CGMINER_VERSION);
+  snprintf(packagename, sizeof(packagename), "%s %s", PACKAGE, VERSION);
 
 #ifndef WIN32
   signal(SIGPIPE, SIG_IGN);
@@ -8734,7 +8738,7 @@ int main(int argc, char *argv[])
 #endif
 
   /* Default algorithm specified in algorithm.c ATM */
-  set_algorithm(&default_profile.algorithm, "scrypt");
+  set_algorithm(&default_profile.algorithm, "x11");
 
   devcursor = 8;
   logstart = devcursor + 1;
