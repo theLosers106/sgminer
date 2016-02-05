@@ -35,8 +35,9 @@
 #include "algorithm/lyra2re.h"
 #include "algorithm/lyra2rev2.h"
 #include "algorithm/pluck.h"
-//#include "algorithm/yescrypt.h"
+#include "algorithm/yescrypt.h"
 #include "algorithm/credits.h"
+#include "algorithm/blake256.h"
 
 #include "compat.h"
 
@@ -66,7 +67,10 @@ const char *algorithm_type_str[] = {
   "Lyra2REV2"
   "Pluck"
   "Yescrypt",
-  "Yescrypt-multi"
+  "Yescrypt-multi",
+  "Blakecoin",
+  "Blake",
+  "Vanilla"
 };
 
 void sha256(const unsigned char *message, unsigned int len, unsigned char *digest)
@@ -217,7 +221,6 @@ static cl_int queue_credits_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_
   return status;
 }
 
-#if 0
 static cl_int queue_yescrypt_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unused cl_uint threads)
 {
   cl_kernel *kernel = &clState->kernel;
@@ -311,7 +314,6 @@ static cl_int queue_yescrypt_multikernel(_clState *clState, dev_blk_ctx *blk, __
 
   return status;
 }
-#endif
 
 static cl_int queue_maxcoin_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
 {
@@ -921,6 +923,34 @@ static cl_int queue_pluck_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_un
   return status;
 }
 
+static cl_int queue_blake_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unused cl_uint threads)
+{
+	cl_kernel *kernel = &clState->kernel;
+	unsigned int num = 0;
+	cl_int status = 0;
+	cl_ulong le_target;
+
+	le_target = *(cl_ulong *)(blk->work->device_target + 24);
+	flip80(clState->cldata, blk->work->data);
+	status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, 80, clState->cldata, 0, NULL, NULL);
+
+	CL_SET_ARG(clState->outputBuffer);
+	CL_SET_ARG(blk->work->blk.ctx_a);
+	CL_SET_ARG(blk->work->blk.ctx_b);
+	CL_SET_ARG(blk->work->blk.ctx_c);
+	CL_SET_ARG(blk->work->blk.ctx_d);
+	CL_SET_ARG(blk->work->blk.ctx_e);
+	CL_SET_ARG(blk->work->blk.ctx_f);
+	CL_SET_ARG(blk->work->blk.ctx_g);
+	CL_SET_ARG(blk->work->blk.ctx_h);
+
+	CL_SET_ARG(blk->work->blk.cty_a);
+	CL_SET_ARG(blk->work->blk.cty_b);
+	CL_SET_ARG(blk->work->blk.cty_c);
+
+	return status;
+}
+
 static algorithm_settings_t algos[] = {
   // kernels starting from this will have difficulty calculated by using litecoin algorithm
 #define A_SCRYPT(a) \
@@ -949,9 +979,6 @@ static algorithm_settings_t algos[] = {
   A_CREDITS("credits"),
 #undef A_CREDITS
 
-
-
-#if 0
 #define A_YESCRYPT(a) \
   { a, ALGO_YESCRYPT, "", 1, 65536, 65536, 0, 0, 0xFF, 0xFFFF000000000000ULL, 0x0000ffffUL, 0, -1, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, yescrypt_regenhash, queue_yescrypt_kernel, gen_hash, append_neoscrypt_compiler_options}
   A_YESCRYPT("yescrypt"),
@@ -961,8 +988,6 @@ static algorithm_settings_t algos[] = {
   { a, ALGO_YESCRYPT_MULTI, "", 1, 65536, 65536, 0, 0, 0xFF, 0xFFFF000000000000ULL, 0x0000ffffUL, 6,-1,CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE , yescrypt_regenhash, queue_yescrypt_multikernel, gen_hash, append_neoscrypt_compiler_options}
   A_YESCRYPT_MULTI("yescrypt-multi"),
 #undef A_YESCRYPT_MULTI
-
-#endif
 
   // kernels starting from this will have difficulty calculated by using quarkcoin algorithm
 #define A_QUARK(a, b) \
@@ -1013,6 +1038,10 @@ static algorithm_settings_t algos[] = {
 
   { "whirlcoin", ALGO_WHIRL, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 3, 8 * 16 * 4194304, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, whirlcoin_regenhash, queue_whirlcoin_kernel, sha256, NULL },
   { "whirlpoolx", ALGO_WHIRLPOOLX, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000FFFFUL, 0, 0, 0, whirlpoolx_regenhash, queue_whirlpoolx_kernel, gen_hash, NULL },
+
+  { "blake256r8",  ALGO_BLAKECOIN, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x000000ffUL, 0, 128, 0, blake_regenhash, queue_blake_kernel, sha256,   NULL },
+  { "blake256r14", ALGO_BLAKE,     "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x00000000UL, 0, 128, 0, blake_regenhash, queue_blake_kernel, gen_hash, NULL },
+  { "vanilla",     ALGO_VANILLA,   "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x000000ffUL, 0, 128, 0, blake_regenhash, queue_blake_kernel, gen_hash, NULL },
 
   // Terminator (do not remove)
   { NULL, ALGO_UNK, "", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL }
@@ -1090,6 +1119,8 @@ static const char *lookup_algorithm_alias(const char *lookup_alias, uint8_t *nfa
   ALGO_ALIAS("Lyra2REv2", "lyra2rev2");
   ALGO_ALIAS("lyra2rev2", "lyra2rev2");
   ALGO_ALIAS("lyra2v2", "lyra2rev2");
+  ALGO_ALIAS("blakecoin", "blake256r8");
+  ALGO_ALIAS("blake", "blake256r14");
 
 #undef ALGO_ALIAS
 #undef ALGO_ALIAS_NF

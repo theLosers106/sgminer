@@ -18,10 +18,10 @@ sgminer_LDADD    = $(DLOPEN_FLAGS) @LIBCURL_LIBS@ @JANSSON_LIBS@ @PTHREAD_LIBS@ 
 		  @OPENCL_LIBS@ @NCURSES_LIBS@ @PDCURSES_LIBS@ @WS2_LIBS@ \
 		  @MM_LIBS@ @RT_LIBS@ @MATH_LIBS@ lib/libgnu.a ccan/libccan.a sph/libsph.a
 
-sgminer_CPPFLAGS += -I$(top_builddir)/lib -I$(top_srcdir)/lib @OPENCL_FLAGS@
+sgminer_CPPFLAGS += -I$(top_builddir)/lib -I$(top_srcdir)/lib @OPENCL_FLAGS@ @LIBCURL_CFLAGS@
 
-if !HAVE_WINDOWS
-sgminer_CPPFLAGS += @LIBCURL_CFLAGS@
+if HAVE_WINDOWS
+sgminer_LDFLAGS += -all-static
 endif
 
 sgminer_CPPFLAGS += $(ADL_CPPFLAGS)
@@ -73,9 +73,11 @@ sgminer_SOURCES += algorithm/whirlcoin.c algorithm/whirlcoin.h
 sgminer_SOURCES += algorithm/neoscrypt.c algorithm/neoscrypt.h
 sgminer_SOURCES += algorithm/whirlpoolx.c algorithm/whirlpoolx.h
 sgminer_SOURCES += algorithm/lyra2re.c algorithm/lyra2re.h algorithm/lyra2.c algorithm/lyra2.h algorithm/sponge.c algorithm/sponge.h
+sgminer_SOURCES += algorithm/lyra2rev2.c algorithm/lyra2rev2.h algorithm/lyra2v2.c algorithm/lyra2v2.h algorithm/spongev2.c algorithm/spongev2.h
 sgminer_SOURCES += algorithm/pluck.c algorithm/pluck.h
 sgminer_SOURCES += algorithm/credits.c algorithm/credits.h
 sgminer_SOURCES += algorithm/yescrypt.h algorithm/yescrypt.c algorithm/yescrypt_core.h algorithm/yescrypt-opt.c algorithm/yescryptcommon.c algorithm/sysendian.h 
+sgminer_SOURCES += algorithm/blake256.c algorithm/blake256.h
 
 bin_SCRIPTS	= $(top_srcdir)/kernel/*.cl
 

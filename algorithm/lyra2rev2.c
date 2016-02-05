@@ -63,6 +63,7 @@ inline void lyra2rev2hash(void *state, const void *input)
     sph_cubehash256_context  ctx_cube;
     uint32_t hashA[8], hashB[8];
 
+	blake256_rounds = 14;
     sph_blake256_init(&ctx_blake);
     sph_blake256 (&ctx_blake, input, 80);
     sph_blake256_close (&ctx_blake, hashA);

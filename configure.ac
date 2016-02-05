@@ -1,7 +1,7 @@
 ##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##
 ##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##
 m4_define([v_maj], [5])
-m4_define([v_min], [2])
+m4_define([v_min], [3])
 m4_define([v_mic], [0])
 m4_define([v_rev], [nicehash])
 ##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##
@@ -288,6 +288,7 @@ else
 	LIBCURL_LIBS=""
 fi
 AC_SUBST(LIBCURL_LIBS)
+AC_SUBST(LIBCURL_CFLAGS)
 
 # Enable or disable use of git version in version string
 AC_MSG_CHECKING(whether to use git version if available)

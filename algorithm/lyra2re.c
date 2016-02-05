@@ -61,6 +61,7 @@ inline void lyra2rehash(void *state, const void *input)
 
     uint32_t hashA[8], hashB[8];
 
+	blake256_rounds = 14;
     sph_blake256_init(&ctx_blake);
     sph_blake256 (&ctx_blake, input, 80);
     sph_blake256_close (&ctx_blake, hashA);
