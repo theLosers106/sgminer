@@ -132,6 +132,9 @@ typedef sph_blake_big_context sph_blake512_context;
 
 #endif
 
+// Number of rounds for COMPRESS32
+extern int blake256_rounds;
+
 /**
  * Initialize a BLAKE-224 context. This process performs no memory allocation.
  *

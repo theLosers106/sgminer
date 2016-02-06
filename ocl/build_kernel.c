@@ -1,6 +1,4 @@
-#include <stdio.h>
 #include "build_kernel.h"
-#include "miner.h"
 
 static char *file_contents(const char *filename, int *length)
 {

@@ -34,7 +34,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "whirlpoolx.h"
+#include "sph/sph_whirlpool.h"
 
 /*
  * Encode a length len/4 vector of (uint32_t) into a length len vector of
@@ -50,124 +50,16 @@ be32enc_vect(uint32_t *dst, const uint32_t *src, uint32_t len)
 }
 
 
-void whirlpool_compress(uint8_t state[64], const uint8_t block[64])
-{
-	const int NUM_ROUNDS = 10;
-	uint64_t tempState[8];
-	uint64_t tempBlock[8];
-	int i;
-	
-	// Initialization
-	for (i = 0; i < 8; i++) {
-		tempState[i] = 
-			  (uint64_t)state[i << 3]
-			| (uint64_t)state[(i << 3) + 1] <<  8
-			| (uint64_t)state[(i << 3) + 2] << 16
-			| (uint64_t)state[(i << 3) + 3] << 24
-			| (uint64_t)state[(i << 3) + 4] << 32
-			| (uint64_t)state[(i << 3) + 5] << 40
-			| (uint64_t)state[(i << 3) + 6] << 48
-			| (uint64_t)state[(i << 3) + 7] << 56;
-		tempBlock[i] = (
-			  (uint64_t)block[i << 3]
-			| (uint64_t)block[(i << 3) + 1] <<  8
-			| (uint64_t)block[(i << 3) + 2] << 16
-			| (uint64_t)block[(i << 3) + 3] << 24
-			| (uint64_t)block[(i << 3) + 4] << 32
-			| (uint64_t)block[(i << 3) + 5] << 40
-			| (uint64_t)block[(i << 3) + 6] << 48
-			| (uint64_t)block[(i << 3) + 7] << 56) ^ tempState[i];
-	}
-	
-	// Hashing rounds
-	uint64_t rcon[8];
-	memset(rcon + 1, 0, sizeof(rcon[0]) * 7);
-	for (i = 0; i < NUM_ROUNDS; i++) {
-		rcon[0] = WHIRLPOOL_ROUND_CONSTANTS[i];
-		whirlpool_round(tempState, rcon);
-		whirlpool_round(tempBlock, tempState);
-	}
-	
-	// Final combining
-	for (i = 0; i < 64; i++)
-		state[i] ^= block[i] ^ (uint8_t)(tempBlock[i >> 3] >> ((i & 7) << 3));
-}
-
-
-
-
-
-void whirlpool_round(uint64_t block[8], const uint64_t key[8]) {
-	uint64_t a = block[0];
-	uint64_t b = block[1];
-	uint64_t c = block[2];
-	uint64_t d = block[3];
-	uint64_t e = block[4];
-	uint64_t f = block[5];
-	uint64_t g = block[6];
-	uint64_t h = block[7];
-	
-	uint64_t r;
-	#define DOROW(i, s, t, u, v, w, x, y, z)  \
-		r = MAGIC_TABLE[(uint8_t)s];  r = (r << 56) | (r >> 8);  \
-		r ^= MAGIC_TABLE[(uint8_t)(t >>  8)];  r = (r << 56) | (r >> 8);  \
-		r ^= MAGIC_TABLE[(uint8_t)(u >> 16)];  r = (r << 56) | (r >> 8);  \
-		r ^= MAGIC_TABLE[(uint8_t)(v >> 24)];  r = (r << 56) | (r >> 8);  \
-		r ^= MAGIC_TABLE[(uint8_t)(w >> 32)];  r = (r << 56) | (r >> 8);  \
-		r ^= MAGIC_TABLE[(uint8_t)(x >> 40)];  r = (r << 56) | (r >> 8);  \
-		r ^= MAGIC_TABLE[(uint8_t)(y >> 48)];  r = (r << 56) | (r >> 8);  \
-		r ^= MAGIC_TABLE[(uint8_t)(z >> 56)];  r = (r << 56) | (r >> 8);  \
-		block[i] = r ^ key[i];
-	
-	DOROW(0, a, h, g, f, e, d, c, b)
-	DOROW(1, b, a, h, g, f, e, d, c)
-	DOROW(2, c, b, a, h, g, f, e, d)
-	DOROW(3, d, c, b, a, h, g, f, e)
-	DOROW(4, e, d, c, b, a, h, g, f)
-	DOROW(5, f, e, d, c, b, a, h, g)
-	DOROW(6, g, f, e, d, c, b, a, h)
-	DOROW(7, h, g, f, e, d, c, b, a)
-}
-
-void whirlpool_hash(const uint8_t *message, uint32_t len, uint8_t hash[64]) {
-	memset(hash, 0, 64);
-	
-	uint32_t i;
-	for (i = 0; len - i >= 64; i += 64)
-		whirlpool_compress(hash, message + i);
-	
-	uint8_t block[64];
-	uint32_t rem = len - i;
-	memcpy(block, message + i, rem);
-	
-	block[rem] = 0x80;
-	rem++;
-	if (64 - rem >= 32)
-		memset(block + rem, 0, 56 - rem);
-	else {
-		memset(block + rem, 0, 64 - rem);
-		whirlpool_compress(hash, block);
-		memset(block, 0, 56);
-	}
-	
-	uint64_t longLen = ((uint64_t)len) << 3;
-	for (i = 0; i < 8; i++)
-		block[64 - 1 - i] = (uint8_t)(longLen >> (i * 8));
-	whirlpool_compress(hash, block);
-}
-
 void whirlpoolx_hash(void *state, const void *input)
 {
-	//sph_whirlpool1_context ctx;
+	sph_whirlpool1_context ctx;
     
-	//sph_whirlpool1_init(&ctx);
+	sph_whirlpool1_init(&ctx);
 
     uint8_t digest[64];  
 
-	//sph_whirlpool(&ctx, input, 80);
-	//sph_whirlpool_close(&ctx, digest);
-	
-	whirlpool_hash((uint8_t *)input, 80, digest);
+	sph_whirlpool(&ctx, input, 80);
+	sph_whirlpool_close(&ctx, digest);
 	
 	uint8_t digest_xored[32]; 
 

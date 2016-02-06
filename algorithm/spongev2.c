@@ -1,9 +1,9 @@
 /**
- * A simple implementation of Blake2b's internal permutation 
+ * A simple implementation of Blake2b's internal permutation
  * in the form of a sponge.
- * 
+ *
  * Author: The Lyra PHC team (http://www.lyra-kdf.net/) -- 2014.
- * 
+ *
  * This software is hereby placed in the public domain.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ''AS IS'' AND ANY EXPRESS
@@ -21,25 +21,25 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-#include "sponge.h"
-#include "lyra2.h"
+#include "spongev2.h"
+#include "lyra2v2.h"
 
 
 
 /**
- * Initializes the Sponge State. The first 512 bits are set to zeros and the remainder 
+ * Initializes the Sponge State. The first 512 bits are set to zeros and the remainder
  * receive Blake2b's IV as per Blake2b's specification. <b>Note:</b> Even though sponges
  * typically have their internal state initialized with zeros, Blake2b's G function
- * has a fixed point: if the internal state and message are both filled with zeros. the 
- * resulting permutation will always be a block filled with zeros; this happens because 
- * Blake2b does not use the constants originally employed in Blake2 inside its G function, 
+ * has a fixed point: if the internal state and message are both filled with zeros. the
+ * resulting permutation will always be a block filled with zeros; this happens because
+ * Blake2b does not use the constants originally employed in Blake2 inside its G function,
  * relying on the IV for avoiding possible fixed points.
- * 
+ *
  * @param state         The 1024-bit array to be initialized
  */
-void initState(uint64_t state[/*16*/]) {
+inline void initStatev2(uint64_t state[/*16*/]) {
     //First 512 bis are zeros
-    memset(state, 0, 64); 
+    memset(state, 0, 64);
     //Remainder BLOCK_LEN_BLAKE2_SAFE_BYTES are reserved to the IV
     state[8] = blake2b_IV[0];
     state[9] = blake2b_IV[1];
@@ -53,10 +53,10 @@ void initState(uint64_t state[/*16*/]) {
 
 /**
  * Execute Blake2b's G function, with all 12 rounds.
- * 
+ *
  * @param v     A 1024-bit (16 uint64_t) array to be processed by Blake2b's G function
  */
-static void blake2bLyra(uint64_t *v) {
+inline static void blake2bLyra(uint64_t *v) {
     ROUND_LYRA(0);
     ROUND_LYRA(1);
     ROUND_LYRA(2);
@@ -75,19 +75,19 @@ static void blake2bLyra(uint64_t *v) {
  * Executes a reduced version of Blake2b's G function with only one round
  * @param v     A 1024-bit (16 uint64_t) array to be processed by Blake2b's G function
  */
-static void reducedBlake2bLyra(uint64_t *v) {
+inline static void reducedBlake2bLyra(uint64_t *v) {
     ROUND_LYRA(0);
 }
 
 /**
- * Performs a squeeze operation, using Blake2b's G function as the 
+ * Performs a squeeze operation, using Blake2b's G function as the
  * internal permutation
- * 
- * @param state      The current state of the sponge 
+ *
+ * @param state      The current state of the sponge
  * @param out        Array that will receive the data squeezed
  * @param len        The number of bytes to be squeezed into the "out" array
  */
-void squeeze(uint64_t *state, byte *out, unsigned int len) {
+inline void squeezev2(uint64_t *state, byte *out, unsigned int len) {
     int fullBlocks = len / BLOCK_LEN_BYTES;
     byte *ptr = out;
     int i;
@@ -105,11 +105,11 @@ void squeeze(uint64_t *state, byte *out, unsigned int len) {
 /**
  * Performs an absorb operation for a single block (BLOCK_LEN_INT64 words
  * of type uint64_t), using Blake2b's G function as the internal permutation
- * 
- * @param state The current state of the sponge 
+ *
+ * @param state The current state of the sponge
  * @param in    The block to be absorbed (BLOCK_LEN_INT64 words)
  */
-void absorbBlock(uint64_t *state, const uint64_t *in) {
+inline void absorbBlockv2(uint64_t *state, const uint64_t *in) {
     //XORs the first BLOCK_LEN_INT64 words of "in" with the current state
     state[0] ^= in[0];
     state[1] ^= in[1];
@@ -129,15 +129,16 @@ void absorbBlock(uint64_t *state, const uint64_t *in) {
 }
 
 /**
- * Performs an absorb operation for a single block (BLOCK_LEN_BLAKE2_SAFE_INT64 
+ * Performs an absorb operation for a single block (BLOCK_LEN_BLAKE2_SAFE_INT64
  * words of type uint64_t), using Blake2b's G function as the internal permutation
- * 
- * @param state The current state of the sponge 
+ *
+ * @param state The current state of the sponge
  * @param in    The block to be absorbed (BLOCK_LEN_BLAKE2_SAFE_INT64 words)
  */
-void absorbBlockBlake2Safe(uint64_t *state, const uint64_t *in) {
+inline void absorbBlockBlake2Safev2(uint64_t *state, const uint64_t *in) {
     //XORs the first BLOCK_LEN_BLAKE2_SAFE_INT64 words of "in" with the current state
-    state[0] ^= in[0];
+
+	state[0] ^= in[0];
     state[1] ^= in[1];
     state[2] ^= in[2];
     state[3] ^= in[3];
@@ -146,23 +147,25 @@ void absorbBlockBlake2Safe(uint64_t *state, const uint64_t *in) {
     state[6] ^= in[6];
     state[7] ^= in[7];
 
+
     //Applies the transformation f to the sponge's state
     blake2bLyra(state);
+
 }
 
-/** 
- * Performs a reduced squeeze operation for a single row, from the highest to 
- * the lowest index, using the reduced-round Blake2b's G function as the 
+/**
+ * Performs a reduced squeeze operation for a single row, from the highest to
+ * the lowest index, using the reduced-round Blake2b's G function as the
  * internal permutation
- * 
- * @param state     The current state of the sponge 
+ *
+ * @param state     The current state of the sponge
  * @param rowOut    Row to receive the data squeezed
  */
-void reducedSqueezeRow0(uint64_t* state, uint64_t* rowOut) {
-    uint64_t* ptrWord = rowOut + (N_COLS-1)*BLOCK_LEN_INT64; //In Lyra2: pointer to M[0][C-1]
+inline void reducedSqueezeRow0v2(uint64_t* state, uint64_t* rowOut, uint64_t nCols) {
+    uint64_t* ptrWord = rowOut + (nCols-1)*BLOCK_LEN_INT64; //In Lyra2: pointer to M[0][C-1]
     int i;
-    //M[row][C-1-col] = H.reduced_squeeze()    
-    for (i = 0; i < N_COLS; i++) {
+    //M[row][C-1-col] = H.reduced_squeeze()
+    for (i = 0; i < nCols; i++) {
 	ptrWord[0] = state[0];
 	ptrWord[1] = state[1];
 	ptrWord[2] = state[2];
@@ -184,21 +187,21 @@ void reducedSqueezeRow0(uint64_t* state, uint64_t* rowOut) {
     }
 }
 
-/** 
- * Performs a reduced duplex operation for a single row, from the highest to 
- * the lowest index, using the reduced-round Blake2b's G function as the 
+/**
+ * Performs a reduced duplex operation for a single row, from the highest to
+ * the lowest index, using the reduced-round Blake2b's G function as the
  * internal permutation
- * 
- * @param state		The current state of the sponge 
+ *
+ * @param state		The current state of the sponge
  * @param rowIn		Row to feed the sponge
  * @param rowOut	Row to receive the sponge's output
  */
-void reducedDuplexRow1(uint64_t *state, uint64_t *rowIn, uint64_t *rowOut) {
+inline void reducedDuplexRow1v2(uint64_t *state, uint64_t *rowIn, uint64_t *rowOut, uint64_t nCols) {
     uint64_t* ptrWordIn = rowIn;				//In Lyra2: pointer to prev
-    uint64_t* ptrWordOut = rowOut + (N_COLS-1)*BLOCK_LEN_INT64; //In Lyra2: pointer to row
+    uint64_t* ptrWordOut = rowOut + (nCols-1)*BLOCK_LEN_INT64; //In Lyra2: pointer to row
     int i;
 
-    for (i = 0; i < N_COLS; i++) {
+    for (i = 0; i < nCols; i++) {
 
 	//Absorbing "M[prev][col]"
 	state[0]  ^= (ptrWordIn[0]);
@@ -230,8 +233,8 @@ void reducedDuplexRow1(uint64_t *state, uint64_t *rowIn, uint64_t *rowOut) {
 	ptrWordOut[9] = ptrWordIn[9]  ^ state[9];
 	ptrWordOut[10] = ptrWordIn[10] ^ state[10];
 	ptrWordOut[11] = ptrWordIn[11] ^ state[11];
-	
-	
+
+
 	//Input: next column (i.e., next block in sequence)
 	ptrWordIn += BLOCK_LEN_INT64;
 	//Output: goes to previous column
@@ -240,26 +243,26 @@ void reducedDuplexRow1(uint64_t *state, uint64_t *rowIn, uint64_t *rowOut) {
 }
 
 /**
- * Performs a duplexing operation over "M[rowInOut][col] [+] M[rowIn][col]" (i.e., 
+ * Performs a duplexing operation over "M[rowInOut][col] [+] M[rowIn][col]" (i.e.,
  * the wordwise addition of two columns, ignoring carries between words). The
- * output of this operation, "rand", is then used to make 
- * "M[rowOut][(N_COLS-1)-col] = M[rowIn][col] XOR rand" and 
- * "M[rowInOut][col] =  M[rowInOut][col] XOR rotW(rand)", where rotW is a 64-bit 
+ * output of this operation, "rand", is then used to make
+ * "M[rowOut][(N_COLS-1)-col] = M[rowIn][col] XOR rand" and
+ * "M[rowInOut][col] =  M[rowInOut][col] XOR rotW(rand)", where rotW is a 64-bit
  * rotation to the left and N_COLS is a system parameter.
  *
- * @param state          The current state of the sponge 
+ * @param state          The current state of the sponge
  * @param rowIn          Row used only as input
  * @param rowInOut       Row used as input and to receive output after rotation
  * @param rowOut         Row receiving the output
  *
  */
-void reducedDuplexRowSetup(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut) {
+inline void reducedDuplexRowSetupv2(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut, uint64_t nCols) {
     uint64_t* ptrWordIn = rowIn;				//In Lyra2: pointer to prev
     uint64_t* ptrWordInOut = rowInOut;				//In Lyra2: pointer to row*
-    uint64_t* ptrWordOut = rowOut + (N_COLS-1)*BLOCK_LEN_INT64; //In Lyra2: pointer to row
+    uint64_t* ptrWordOut = rowOut + (nCols-1)*BLOCK_LEN_INT64; //In Lyra2: pointer to row
     int i;
 
-    for (i = 0; i < N_COLS; i++) {
+    for (i = 0; i < nCols; i++) {
 	//Absorbing "M[prev] [+] M[row*]"
 	state[0]  ^= (ptrWordIn[0]  + ptrWordInOut[0]);
 	state[1]  ^= (ptrWordIn[1]  + ptrWordInOut[1]);
@@ -290,7 +293,7 @@ void reducedDuplexRowSetup(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut,
 	ptrWordOut[9] = ptrWordIn[9]  ^ state[9];
 	ptrWordOut[10] = ptrWordIn[10] ^ state[10];
 	ptrWordOut[11] = ptrWordIn[11] ^ state[11];
-	
+
 	//M[row*][col] = M[row*][col] XOR rotW(rand)
 	ptrWordInOut[0]  ^= state[11];
 	ptrWordInOut[1]  ^= state[0];
@@ -314,26 +317,26 @@ void reducedDuplexRowSetup(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut,
 }
 
 /**
- * Performs a duplexing operation over "M[rowInOut][col] [+] M[rowIn][col]" (i.e., 
+ * Performs a duplexing operation over "M[rowInOut][col] [+] M[rowIn][col]" (i.e.,
  * the wordwise addition of two columns, ignoring carries between words). The
- * output of this operation, "rand", is then used to make 
- * "M[rowOut][col] = M[rowOut][col] XOR rand" and 
- * "M[rowInOut][col] =  M[rowInOut][col] XOR rotW(rand)", where rotW is a 64-bit 
+ * output of this operation, "rand", is then used to make
+ * "M[rowOut][col] = M[rowOut][col] XOR rand" and
+ * "M[rowInOut][col] =  M[rowInOut][col] XOR rotW(rand)", where rotW is a 64-bit
  * rotation to the left.
  *
- * @param state          The current state of the sponge 
+ * @param state          The current state of the sponge
  * @param rowIn          Row used only as input
  * @param rowInOut       Row used as input and to receive output after rotation
  * @param rowOut         Row receiving the output
  *
  */
-void reducedDuplexRow(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut) {
+inline void reducedDuplexRowv2(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut, uint64_t nCols) {
     uint64_t* ptrWordInOut = rowInOut; //In Lyra2: pointer to row*
     uint64_t* ptrWordIn = rowIn; //In Lyra2: pointer to prev
     uint64_t* ptrWordOut = rowOut; //In Lyra2: pointer to row
     int i;
 
-    for (i = 0; i < N_COLS; i++) {
+    for (i = 0; i < nCols; i++) {
 
 	//Absorbing "M[prev] [+] M[row*]"
 	state[0]  ^= (ptrWordIn[0]  + ptrWordInOut[0]);
@@ -392,17 +395,17 @@ void reducedDuplexRow(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint
 
 /**
  * Performs a duplex operation over "M[rowInOut] [+] M[rowIn]", writing the output "rand"
- * on M[rowOut] and making "M[rowInOut] =  M[rowInOut] XOR rotW(rand)", where rotW is a 64-bit 
+ * on M[rowOut] and making "M[rowInOut] =  M[rowInOut] XOR rotW(rand)", where rotW is a 64-bit
  * rotation to the left.
  *
- * @param state          The current state of the sponge 
+ * @param state          The current state of the sponge
  * @param rowIn          Row used only as input
  * @param rowInOut       Row used as input and to receive output after rotation
  * @param rowOut         Row receiving the output
  *
  */
 /*
-void reducedDuplexRowSetupOLD(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut) {
+inline void reducedDuplexRowSetupOLD(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut) {
     uint64_t* ptrWordIn = rowIn; //In Lyra2: pointer to prev
     uint64_t* ptrWordInOut = rowInOut; //In Lyra2: pointer to row*
     uint64_t* ptrWordOut = rowOut; //In Lyra2: pointer to row
@@ -465,17 +468,17 @@ void reducedDuplexRowSetupOLD(uint64_t *state, uint64_t *rowIn, uint64_t *rowInO
 
 /**
  * Performs a duplex operation over "M[rowInOut] XOR M[rowIn]", writing the output "rand"
- * on M[rowOut] and making "M[rowInOut] =  M[rowInOut] XOR rotW(rand)", where rotW is a 64-bit 
+ * on M[rowOut] and making "M[rowInOut] =  M[rowInOut] XOR rotW(rand)", where rotW is a 64-bit
  * rotation to the left.
  *
- * @param state          The current state of the sponge 
+ * @param state          The current state of the sponge
  * @param rowIn          Row used only as input
  * @param rowInOut       Row used as input and to receive output after rotation
  * @param rowOut         Row receiving the output
  *
  */
 /*
-void reducedDuplexRowSetupv5(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut) {
+inline void reducedDuplexRowSetupv5(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut) {
     uint64_t* ptrWordIn = rowIn; //In Lyra2: pointer to prev
     uint64_t* ptrWordInOut = rowInOut; //In Lyra2: pointer to row*
     uint64_t* ptrWordOut = rowOut; //In Lyra2: pointer to row
@@ -539,17 +542,17 @@ void reducedDuplexRowSetupv5(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOu
 
 /**
  * Performs a duplex operation over "M[rowInOut] XOR M[rowIn]", writing the output "rand"
- * on M[rowOut] and making "M[rowInOut] =  M[rowInOut] XOR rotW(rand)", where rotW is a 64-bit 
+ * on M[rowOut] and making "M[rowInOut] =  M[rowInOut] XOR rotW(rand)", where rotW is a 64-bit
  * rotation to the left.
  *
- * @param state          The current state of the sponge 
+ * @param state          The current state of the sponge
  * @param rowIn          Row used only as input
  * @param rowInOut       Row used as input and to receive output after rotation
  * @param rowOut         Row receiving the output
  *
  */
 /*
-void reducedDuplexRowSetupv5c(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut) {
+inline void reducedDuplexRowSetupv5c(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut) {
     uint64_t* ptrWordIn = rowIn; //In Lyra2: pointer to prev
     uint64_t* ptrWordInOut = rowInOut; //In Lyra2: pointer to row*
     uint64_t* ptrWordOut = rowOut;
@@ -668,17 +671,17 @@ void reducedDuplexRowSetupv5c(uint64_t *state, uint64_t *rowIn, uint64_t *rowInO
 
 /**
  * Performs a duplex operation over "M[rowInOut] XOR M[rowIn]", using the output "rand"
- * to make "M[rowOut][col] = M[rowOut][col] XOR rand" and "M[rowInOut] = M[rowInOut] XOR rotW(rand)", 
+ * to make "M[rowOut][col] = M[rowOut][col] XOR rand" and "M[rowInOut] = M[rowInOut] XOR rotW(rand)",
  * where rotW is a 64-bit rotation to the left.
  *
- * @param state          The current state of the sponge 
+ * @param state          The current state of the sponge
  * @param rowIn          Row used only as input
  * @param rowInOut       Row used as input and to receive output after rotation
  * @param rowOut         Row receiving the output
  *
  */
 /*
-void reducedDuplexRowd(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut) {
+inline void reducedDuplexRowd(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uint64_t *rowOut) {
     uint64_t* ptrWordInOut = rowInOut; //In Lyra2: pointer to row*
     uint64_t* ptrWordIn = rowIn; //In Lyra2: pointer to prev
     uint64_t* ptrWordOut = rowOut; //In Lyra2: pointer to row
@@ -717,7 +720,7 @@ void reducedDuplexRowd(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uin
 	ptrWordOut[11] ^= state[11];
 
 	//M[rowInOut][col] = M[rowInOut][col] XOR rotW(rand)
-	
+
 
 	//Goes to next block
 	ptrWordOut += BLOCK_LEN_INT64;
@@ -730,7 +733,7 @@ void reducedDuplexRowd(uint64_t *state, uint64_t *rowIn, uint64_t *rowInOut, uin
 /**
  Prints an array of unsigned chars
  */
-void printArray(unsigned char *array, unsigned int size, char *name) {
+void printArrayv2(unsigned char *array, unsigned int size, char *name) {
     int i;
     printf("%s: ", name);
     for (i = 0; i < size; i++) {

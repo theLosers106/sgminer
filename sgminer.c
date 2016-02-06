@@ -68,6 +68,10 @@ char *curly = ":D";
   #include <sys/wait.h>
 #endif
 
+#if defined(USE_GIT_VERSION) && defined(GIT_VERSION)
+#undef VERSION
+#define VERSION GIT_VERSION
+#endif
 
 static char packagename[256];
 
@@ -2567,7 +2571,7 @@ static void curses_print_status(void)
   unsigned short int line = 0;
 
   wattron(statuswin, A_BOLD);
-  cg_mvwprintw(statuswin, line, 0, PACKAGE " " CGMINER_VERSION " - Started: %s", datestamp);
+  cg_mvwprintw(statuswin, line, 0, PACKAGE " " VERSION " - Started: %s", datestamp);
   curses_print_uptime(&launch_time);
   wattroff(statuswin, A_BOLD);
 
@@ -2625,7 +2629,7 @@ static void curses_print_devstatus(struct cgpu_info *cgpu, int count)
   if (devcursor + count > LINES - 2)
     return;
 
-  if (count >= most_devices)
+  if (count >= total_devices)
     return;
 
   if (cgpu->dev_start_tv.tv_sec == 0)
@@ -2745,7 +2749,7 @@ static void switch_logsize(bool __maybe_unused newdevs)
     if (opt_compact) {
       logstart = devcursor + 1;
     } else {
-      logstart = devcursor + most_devices + 1;
+      logstart = devcursor + total_devices + 1;
     }
     logcursor = logstart + 1;
 #ifdef WIN32
@@ -8700,7 +8704,7 @@ int main(int argc, char *argv[])
   /* We use the getq mutex as the staged lock */
   stgd_lock = &getq->mutex;
 
-  snprintf(packagename, sizeof(packagename), "%s %s", PACKAGE, CGMINER_VERSION);
+  snprintf(packagename, sizeof(packagename), "%s %s", PACKAGE, VERSION);
 
 #ifndef WIN32
   signal(SIGPIPE, SIG_IGN);
@@ -8734,7 +8738,7 @@ int main(int argc, char *argv[])
 #endif
 
   /* Default algorithm specified in algorithm.c ATM */
-  set_algorithm(&default_profile.algorithm, "scrypt");
+  set_algorithm(&default_profile.algorithm, "x11");
 
   devcursor = 8;
   logstart = devcursor + 1;
@@ -8873,7 +8877,7 @@ int main(int argc, char *argv[])
   rd_unlock(&devices_lock);
 
   if (!opt_compact) {
-    logstart += most_devices;
+    logstart += total_devices;
     logcursor = logstart + 1;
 #ifdef HAVE_CURSES
     check_winsizes();

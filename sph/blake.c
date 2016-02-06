@@ -52,6 +52,8 @@
 #pragma warning (disable: 4146)
 #endif
 
+int blake256_rounds;
+
 static const sph_u32 IV224[8] = {
 	SPH_C32(0xC1059ED8), SPH_C32(0x367CD507),
 	SPH_C32(0x3070DD17), SPH_C32(0xF70E5939),
@@ -603,12 +605,14 @@ static const sph_u64 CB[16] = {
 		ROUND_S(5); \
 		ROUND_S(6); \
 		ROUND_S(7); \
-		ROUND_S(8); \
-		ROUND_S(9); \
-		ROUND_S(0); \
-		ROUND_S(1); \
-		ROUND_S(2); \
-		ROUND_S(3); \
+		if (blake256_rounds > 8) { \
+			ROUND_S(8); \
+			ROUND_S(9); \
+			ROUND_S(0); \
+			ROUND_S(1); \
+			ROUND_S(2); \
+			ROUND_S(3); \
+		} \
 		H0 ^= S0 ^ V0 ^ V8; \
 		H1 ^= S1 ^ V1 ^ V9; \
 		H2 ^= S2 ^ V2 ^ VA; \
